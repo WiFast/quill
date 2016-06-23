@@ -103,7 +103,7 @@ class Toolbar extends Module {
         if (formats[format] == null) {
           option = input.querySelector('option[selected]');
         } else if (!Array.isArray(formats[format])) {
-          option = input.querySelector(`option[value="${formats[format]}"]`);
+          option = input.querySelector(`option[value="${formats[format].replace(/\"/g, "\'")}"]`);
         }
         if (option == null) {
           input.value = '';   // TODO make configurable?
