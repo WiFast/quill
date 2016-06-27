@@ -5121,7 +5121,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      var bounds = this.getBounds(range.index, range.length);
 	      if (bounds == null) return;
 	      if (this.root.offsetHeight < bounds.bottom) {
-	        var _scroll$line = this.scroll.line(range.index + range.length);
+	        var _scroll$line = this.scroll.line(range.index + range.length - 1);
 
 	        var _scroll$line2 = _slicedToArray(_scroll$line, 2);
 

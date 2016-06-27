@@ -197,7 +197,7 @@ class Selection {
     let bounds = this.getBounds(range.index, range.length);
     if (bounds == null) return;
     if (this.root.offsetHeight < bounds.bottom) {
-      let [line, offset] = this.scroll.line(range.index + range.length);
+      let [line, offset] = this.scroll.line(range.index + range.length - 1);
       this.root.scrollTop = line.domNode.offsetTop + line.domNode.offsetHeight;
     } else if (bounds.top < 0) {
       let [line, offset] = this.scroll.line(range.index);
