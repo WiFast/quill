@@ -7237,7 +7237,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	}(_inline2.default);
 
 	Bold.blotName = 'bold';
-	Bold.tagName = 'STRONG';
+	Bold.tagName = 'B';
 
 	exports.default = Bold;
 
@@ -7276,7 +7276,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	}(_inline2.default);
 
 	Italic.blotName = 'italic';
-	Italic.tagName = 'EM';
+	Italic.tagName = 'I';
 
 	exports.default = Italic;
 
