@@ -563,7 +563,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	        return position;
 	    };
 	    ContainerBlot.prototype.replace = function (target) {
-	        target.moveChildren(this);
+	        if (target instanceof ContainerBlot) {
+	            target.moveChildren(this);
+	        }
 	        _super.prototype.replace.call(this, target);
 	    };
 	    ContainerBlot.prototype.split = function (index, force) {
@@ -616,7 +618,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	            if (node.nextSibling != null) {
 	                refBlot = Registry.find(node.nextSibling);
 	            }
-	            var blot = Registry.find(node) || Registry.create(node);
+	            var blot;
+	            if (node instanceof HTMLFontElement) {
+	                // node is in the form <font><span><b>...</b></span></font>
+	                // Registry.create doesn't handle the <font> case well, and throws a ParchmentError
+	                var BlotClass = Registry.query(node.firstChild.firstChild);
+	                blot = new BlotClass(node.firstChild.firstChild);
+	            }
+	            else {
+	                blot = Registry.find(node) || Registry.create(node);
+	            }
 	            if (blot.next != refBlot || blot.next == null) {
 	                if (blot.parent != null) {
 	                    blot.parent.children.remove(blot);
@@ -1180,6 +1191,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	        });
 	    };
 	    Attributor.prototype.add = function (node, value) {
+	        if (!this.canAdd(node, value))
+	            return false;
 	        node.setAttribute(this.keyName, value);
 	        return true;
 	    };
@@ -1220,7 +1233,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	    AttributorStore.prototype.attribute = function (attribute, value) {
 	        if (value) {
 	            if (attribute.add(this.domNode, value)) {
-	                this.attributes[attribute.attrName] = attribute;
+	                if (attribute.value(this.domNode) != null) {
+	                    this.attributes[attribute.attrName] = attribute;
+	                }
+	                else {
+	                    delete this.attributes[attribute.attrName];
+	                }
 	            }
 	        }
 	        else {
@@ -1503,17 +1521,22 @@ return /******/ (function(modules) { // webpackBootstrap
 	            }
 	            remaining.forEach(function (mutation) {
 	                var blot = Registry.find(mutation.target, true);
-	                if (blot != null && blot.domNode === mutation.target && mutation.type === 'childList') {
-	                    mark(Registry.find(mutation.previousSibling, false));
-	                    [].forEach.call(mutation.addedNodes, function (node) {
-	                        var child = Registry.find(node, false);
-	                        mark(child);
-	                        if (child instanceof container_1.default) {
-	                            child.children.forEach(mark);
-	                        }
-	                    });
+	                if (blot != null && blot.domNode === mutation.target) {
+	                    if (mutation.type === 'childList') {
+	                        mark(Registry.find(mutation.previousSibling, false));
+	                        [].forEach.call(mutation.addedNodes, function (node) {
+	                            var child = Registry.find(node, false);
+	                            mark(child);
+	                            if (child instanceof container_1.default) {
+	                                child.children.forEach(mark);
+	                            }
+	                        });
+	                    }
+	                    else if (mutation.type === 'attributes') {
+	                        mark(blot.prev);
+	                    }
+	                    mark(blot);
 	                }
-	                mark(blot);
 	            });
 	            this.children.forEach(optimize);
 	            remaining = this.observer.takeRecords();
@@ -1589,8 +1612,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	        return _super.formats.call(this, domNode);
 	    };
 	    InlineBlot.prototype.format = function (name, value) {
+	        var _this = this;
 	        if (name === this.statics.blotName && !value) {
-	            this.replaceWith(InlineBlot.blotName);
+	            this.children.forEach(function (child) {
+	                if (!(child instanceof format_1.default)) {
+	                    child = child.wrap(InlineBlot.blotName, true);
+	                }
+	                _this.attributes.copy(child);
+	            });
+	            this.unwrap();
 	        }
 	        else {
 	            _super.prototype.format.call(this, name, value);
@@ -1644,7 +1674,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	        _super.apply(this, arguments);
 	    }
 	    BlockBlot.formats = function (domNode) {
-	        if (domNode.tagName === BlockBlot.tagName)
+	        var tagName = Registry.query(BlockBlot.blotName).tagName;
+	        if (domNode.tagName === tagName)
 	            return undefined;
 	        return _super.formats.call(this, domNode);
 	    };
@@ -2521,15 +2552,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	        // Other op should be delete, we could be an insert or retain
 	        // Insert + delete cancels out
 	      } else if (typeof otherOp['delete'] === 'number' && typeof thisOp.retain === 'number') {
-	          delta.push(otherOp);
-	        }
+	        delta.push(otherOp);
+	      }
 	    }
 	  }
 	  return delta.chop();
 	};
 
 	Delta.prototype.concat = function (other) {
-	  var delta = this.slice();
+	  var delta = new Delta(this.ops.slice());
 	  if (other.ops.length > 0) {
 	    delta.push(other.ops[0]);
 	    delta.ops = delta.ops.concat(other.ops.slice(1));
@@ -3193,17 +3224,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	    // 7.3. Other pairs that do not both pass typeof value == 'object',
 	    // equivalence is determined by ==.
 	  } else if (!actual || !expected || (typeof actual === 'undefined' ? 'undefined' : _typeof(actual)) != 'object' && (typeof expected === 'undefined' ? 'undefined' : _typeof(expected)) != 'object') {
-	      return opts.strict ? actual === expected : actual == expected;
+	    return opts.strict ? actual === expected : actual == expected;
 
-	      // 7.4. For all other Object pairs, including Array objects, equivalence is
-	      // determined by having the same number of owned properties (as verified
-	      // with Object.prototype.hasOwnProperty.call), the same set of keys
-	      // (although not necessarily the same order), equivalent values for every
-	      // corresponding key, and an identical 'prototype' property. Note: this
-	      // accounts for both named and indexed properties on Arrays.
-	    } else {
-	        return objEquiv(actual, expected, opts);
-	      }
+	    // 7.4. For all other Object pairs, including Array objects, equivalence is
+	    // determined by having the same number of owned properties (as verified
+	    // with Object.prototype.hasOwnProperty.call), the same set of keys
+	    // (although not necessarily the same order), equivalent values for every
+	    // corresponding key, and an identical 'prototype' property. Note: this
+	    // accounts for both named and indexed properties on Arrays.
+	  } else {
+	    return objEquiv(actual, expected, opts);
+	  }
 	};
 
 	function isUndefinedOrNull(value) {
@@ -3396,8 +3427,8 @@ return /******/ (function(modules) { // webpackBootstrap
 
 							// Don't bring in undefined values
 						} else if (typeof copy !== 'undefined') {
-								target[name] = copy;
-							}
+							target[name] = copy;
+						}
 					}
 				}
 			}
