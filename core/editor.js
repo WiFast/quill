@@ -2,8 +2,10 @@ import Delta from 'rich-text/lib/delta';
 import DeltaOp from 'rich-text/lib/op';
 import Emitter from './emitter';
 import Parchment from 'parchment';
+import CodeBlock from '../formats/code';
 import Block, { bubbleFormats } from '../blots/block';
 import clone from 'clone';
+import equal from 'deep-equal';
 import extend from 'extend';
 
 
@@ -11,12 +13,13 @@ class Editor {
   constructor(scroll, emitter) {
     this.scroll = scroll;
     this.emitter = emitter;
-    this.emitter.on(Emitter.events.SCROLL_UPDATE, this.update, this);
+    this.emitter.on(Emitter.events.SCROLL_UPDATE, this.update.bind(this, null));
     this.delta = this.getDelta();
     this.enable();
   }
 
   applyDelta(delta, source = Emitter.sources.API) {
+    this.updating = true;
     let consumeNextNewline = false;
     delta.ops.reduce((index, op) => {
       if (typeof op.delete === 'number') {
@@ -24,7 +27,7 @@ class Editor {
         return index;
       }
       let length = op.retain || op.insert.length || 1;
-      let attributes = op.attributes || {};
+      let attributes = handleOldList(op.attributes || {});
       if (op.insert != null) {
         [op, attributes] = handleOldEmbed(op, attributes);
         if (typeof op.insert === 'string') {
@@ -59,12 +62,13 @@ class Editor {
       });
       return index + length;
     }, 0);
-    this.update(source);
+    this.updating = false;
+    this.update(delta, source);
   }
 
   deleteText(index, length, source = Emitter.sources.API) {
     this.scroll.deleteAt(index, length);
-    this.update(source);
+    this.update(new Delta().retain(index).delete(length), source);
   }
 
   enable(enabled = true) {
@@ -74,19 +78,26 @@ class Editor {
   formatLine(index, length, formats = {}, source = Emitter.sources.API) {
     this.scroll.update();
     Object.keys(formats).forEach((format) => {
-      this.scroll.lines(index, Math.max(length, 1)).forEach(function(line) {
-        line.format(format, formats[format]);
+      let lines = this.scroll.lines(index, Math.max(length, 1));
+      lines.forEach((line, i) => {
+        if (!(line instanceof CodeBlock)) {
+          line.format(format, formats[format]);
+        } else {
+          let codeIndex = index - line.offset(this.scroll);
+          let codeLength = line.newlineIndex(codeIndex) - index + 1;
+          line.formatAt(codeIndex, codeLength, format, formats[format]);
+        }
       });
     });
     this.scroll.optimize();
-    this.update(source);
+    this.update(new Delta().retain(index).retain(length, clone(formats)), source);
   }
 
   formatText(index, length, formats = {}, source = Emitter.sources.API) {
     Object.keys(formats).forEach((format) => {
       this.scroll.formatAt(index, length, format, formats[format]);
     });
-    this.update(source);
+    this.update(new Delta().retain(index).retain(length, clone(formats)), source);
   }
 
   getContents(index, length) {
@@ -135,13 +146,16 @@ class Editor {
 
   insertEmbed(index, embed, value, source = Emitter.sources.API) {
     this.scroll.insertAt(index, embed, value);
-    this.update(source);
+    this.update(new Delta().retain(index).insert({ [embed]: value }), source);
   }
 
   insertText(index, text, formats = {}, source = Emitter.sources.API) {
     text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
     this.scroll.insertAt(index, text);
-    this.formatText(index, text.length, formats, source);
+    Object.keys(formats).forEach((format) => {
+      this.scroll.formatAt(index, text.length, format, formats[format]);
+    });
+    this.update(new Delta().retain(index).insert(text, clone(formats)), source)
   }
 
   isBlank() {
@@ -165,12 +179,19 @@ class Editor {
     this.applyDelta(delta, source);
   }
 
-  update(source = Emitter.sources.USER) {
+  update(change, source = Emitter.sources.USER) {
+    if (this.updating) return;
     let oldDelta = this.delta;
     this.delta = this.getDelta();
-    let change = oldDelta.diff(this.delta);
+    if (!change || !equal(oldDelta.compose(change), this.delta)) {
+      change = oldDelta.diff(this.delta);
+    }
     if (change.length() > 0) {
-      this.emitter.emit(Emitter.events.TEXT_CHANGE, change, oldDelta, source);
+      let args = [Emitter.events.TEXT_CHANGE, change, oldDelta, source];
+      this.emitter.emit(Emitter.events.EDITOR_CHANGE, ...args);
+      if (source !== Emitter.sources.SILENT) {
+        this.emitter.emit(...args);
+      }
     }
   }
 }
@@ -202,6 +223,17 @@ function handleOldEmbed(op, attributes) {
     delete attributes['image'];
   }
   return [op, attributes];
+}
+
+function handleOldList(attributes) {
+  if (attributes['list'] === true) {
+    attributes = clone(attributes);
+    attributes['list'] = 'ordered';
+  } else if (attributes['bullet'] === true) {
+    attributes = clone(attributes);
+    attributes['list'] = 'bullet';
+  }
+  return attributes;
 }
 
 

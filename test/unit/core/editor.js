@@ -136,6 +136,15 @@ describe('Editor', function() {
         <p><strong>23</strong></p>`
       );
     });
+
+    it('text removing formatting', function() {
+      let editor = this.initialize(Editor, '<p><s>01</s></p>');
+      editor.insertText(2, '23', { bold: false, strike: false });
+      expect(editor.getDelta()).toEqual(new Delta()
+        .insert('01', { strike: true })
+        .insert('23\n')
+      );
+    });
   });
 
   describe('delete', function() {
@@ -315,6 +324,12 @@ describe('Editor', function() {
       let editor = this.initialize(Editor, '');
       editor.applyDelta(new Delta().insert(1, { image: '/assets/favicon.png', italic: true }));
       expect(this.container).toEqualHTML('<p><em><img src="/assets/favicon.png"></em>');
+    });
+
+    it('old list', function() {
+      let editor = this.initialize(Editor, '');
+      editor.applyDelta(new Delta().insert('\n', { bullet: true }).insert('\n', { list: true }));
+      expect(this.container).toEqualHTML('<ul><li><br></li></ul><ol><li><br></li></ol><p><br></p>');
     });
 
     it('improper block embed insert', function() {

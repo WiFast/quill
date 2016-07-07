@@ -1,8 +1,10 @@
 import extend from 'extend';
+import Delta from 'rich-text/lib/delta';
 import Parchment from 'parchment';
 import Quill from '../core/quill';
 import logger from '../core/logger';
 import Module from '../core/module';
+import { Range } from '../core/selection';
 
 let debug = logger('quill:toolbar');
 
@@ -80,12 +82,20 @@ class Toolbar extends Module {
           e.preventDefault();
         }
         this.quill.focus();
+        let [range, ] = this.quill.selection.getRange();
         if (this.handlers[format] != null) {
           this.handlers[format].call(this, value);
+        } else if (Parchment.query(format).prototype instanceof Parchment.Embed) {
+          this.quill.updateContents(new Delta()
+            .retain(range.index)
+            .delete(range.length)
+            .insert({ [format]: true })
+          , Quill.sources.USER);
+          range = new Range(range.index + 1, 0);
+          this.quill.setSelection(range, Quill.sources.SILENT);
         } else {
           this.quill.format(format, value, Quill.sources.USER);
         }
-        let [range, ] = this.quill.selection.getRange();
         this.update(range);
       });
     });
@@ -116,7 +126,7 @@ class Toolbar extends Module {
                      (formats[format] != null && input.value === formats[format].toString());
         input.classList.toggle('ql-active', active);
       } else {
-        input.classList.toggle('ql-active', formats[format] || false);
+        input.classList.toggle('ql-active', formats[format] === true || false);
       }
     });
   }
