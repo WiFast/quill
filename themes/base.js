@@ -1,10 +1,12 @@
 import extend from 'extend';
 import Delta from 'rich-text/lib/delta';
 import Emitter from '../core/emitter';
+import Keyboard from '../modules/keyboard';
 import Theme from '../core/theme';
 import ColorPicker from '../ui/color-picker';
 import IconPicker from '../ui/icon-picker';
 import Picker from '../ui/picker';
+import Tooltip from '../ui/tooltip';
 import icons from '../ui/icons';
 
 
@@ -40,6 +42,23 @@ class BaseTheme extends Theme {
       this.constructor.DEFAULTS.modules.toolbar.handlers || {},
       this.options.modules.toolbar.handlers || {}
     );
+    let listener = (e) => {
+      if (!document.body.contains(quill.root)) {
+        return document.body.removeEventListener('click', listener);
+      }
+      if (this.tooltip != null && !this.tooltip.root.contains(e.target) &&
+          document.activeElement !== this.tooltip.textbox && !this.quill.hasFocus()) {
+        this.tooltip.hide();
+      }
+      if (this.pickers != null) {
+        this.pickers.forEach(function(picker) {
+          if (!picker.container.contains(e.target)) {
+            picker.close();
+          }
+        });
+      }
+    };
+    document.body.addEventListener('click', listener);
   }
 
   addModule(name) {
@@ -72,19 +91,18 @@ class BaseTheme extends Theme {
   }
 
   buildPickers(selects) {
-    let pickers = selects.map((select) => {
-      let picker;
+    this.pickers = selects.map((select) => {
       if (select.classList.contains('ql-align')) {
         if (select.querySelector('option') == null) {
           fillSelect(select, ALIGNS);
         }
-        picker = new IconPicker(select, icons.align);
+        return new IconPicker(select, icons.align);
       } else if (select.classList.contains('ql-background') || select.classList.contains('ql-color')) {
         let format = select.classList.contains('ql-background') ? 'background' : 'color';
         if (select.querySelector('option') == null) {
           fillSelect(select, COLORS, format === 'background' ? '#ffffff' : '#000000');
         }
-        picker = new ColorPicker(select, icons[format]);
+        return new ColorPicker(select, icons[format]);
       } else {
         if (select.querySelector('option') == null) {
           if (select.classList.contains('ql-font')) {
@@ -95,62 +113,137 @@ class BaseTheme extends Theme {
             fillSelect(select, SIZES);
           }
         }
-        picker = new Picker(select);
+        return new Picker(select);
       }
-      return picker;
     });
-    let update = function() {
-      pickers.forEach(function(picker) {
+    let update = () => {
+      this.pickers.forEach(function(picker) {
         picker.update();
       });
     };
     this.quill.on(Emitter.events.SELECTION_CHANGE, update)
               .on(Emitter.events.SCROLL_OPTIMIZE, update);
-    document.body.addEventListener('click', (e) => {
-      pickers.forEach(function(picker) {
-        if (!(e.target.compareDocumentPosition(picker.container) & Node.DOCUMENT_POSITION_CONTAINS)) {
-          picker.close();
-        }
-      });
-    });
   }
 }
 BaseTheme.DEFAULTS = {
   modules: {
     toolbar: {
       handlers: {
+        formula: function(value) {
+          this.quill.theme.tooltip.edit('formula');
+        },
         image: function(value) {
           let fileInput = this.container.querySelector('input.ql-image[type=file]');
-          let quill = this.quill;
           if (fileInput == null) {
             fileInput = document.createElement('input');
             fileInput.setAttribute('type', 'file');
             fileInput.setAttribute('accept', 'image/*');
             fileInput.classList.add('ql-image');
-            fileInput.addEventListener('change', function() {
-              if (this.files != null && this.files[0] != null) {
+            fileInput.addEventListener('change', () => {
+              if (fileInput.files != null && fileInput.files[0] != null) {
                 let reader = new FileReader();
-                reader.onload = function(e) {
-                  let range = quill.getSelection(true);
-                  quill.updateContents(new Delta()
+                reader.onload = (e) => {
+                  let range = this.quill.getSelection(true);
+                  this.quill.updateContents(new Delta()
                     .retain(range.index)
                     .delete(range.length)
                     .insert({ image: e.target.result })
                   , Emitter.sources.USER);
-                  quill.setSelection(range.index + 1, Emitter.sources.SILENT);
                   fileInput.value = "";
                 }
-                reader.readAsDataURL(this.files[0]);
+                reader.readAsDataURL(fileInput.files[0]);
               }
             });
             this.container.appendChild(fileInput);
           }
           fileInput.click();
+        },
+        video: function(value) {
+          this.quill.theme.tooltip.edit('video');
         }
       }
     }
   }
 };
+
+
+class BaseTooltip extends Tooltip {
+  constructor(quill, boundsContainer) {
+    super(quill, boundsContainer);
+    this.textbox = this.root.querySelector('input[type="text"]');
+    this.listen();
+  }
+
+  listen() {
+    this.textbox.addEventListener('keydown', (event) => {
+      if (Keyboard.match(event, 'enter')) {
+        this.save();
+        event.preventDefault();
+      } else if (Keyboard.match(event, 'escape')) {
+        this.cancel();
+        event.preventDefault();
+      }
+    });
+  }
+
+  cancel() {
+    this.hide();
+  }
+
+  edit(mode = 'link', preview = null) {
+    this.root.classList.remove('ql-hidden');
+    this.root.classList.add('ql-editing');
+    if (preview != null) {
+      this.textbox.value = preview;
+    } else if (mode !== this.root.dataset.mode) {
+      this.textbox.value = '';
+    }
+    this.textbox.select();
+    this.textbox.setAttribute('placeholder', this.textbox.dataset[mode] || '');
+    this.root.dataset.mode = mode;
+    this.position(this.quill.getBounds(this.quill.selection.savedRange));
+  }
+
+  save() {
+    let value = this.textbox.value;
+    switch(this.root.dataset.mode) {
+      case 'link':
+        let scrollTop = this.quill.root.scrollTop;
+        if (this.linkRange) {
+          this.quill.formatText(this.linkRange, 'link', value, Emitter.sources.USER);
+          delete this.linkRange;
+        } else {
+          this.quill.focus();
+          this.quill.format('link', value, Emitter.sources.USER);
+        }
+        this.quill.root.scrollTop = scrollTop;
+        break;
+      case 'video':
+        let match = value.match(/^(https?):\/\/(www\.)?youtube\.com\/watch.*v=(\w+)/) ||
+                    value.match(/^(https?):\/\/(www\.)?youtu\.be\/(\w+)/);
+        if (match) {
+          value = match[1] + '://www.youtube.com/embed/' + match[3] + '?showinfo=0';
+        } else if (match = value.match(/^(https?):\/\/(www\.)?vimeo\.com\/(\d+)/)) {
+          value = match[1] + '://player.vimeo.com/video/' + match[3] + '/';
+        }
+        // fallthrough
+      case 'formula':
+        let range = this.quill.getSelection(true);
+        let index = range.index + range.length;
+        if (range != null) {
+          this.quill.insertEmbed(index, this.root.dataset.mode, value, Emitter.sources.USER);
+          if (this.root.dataset.mode === 'formula') {
+            this.quill.insertText(index + 1, ' ', Emitter.sources.USER);
+          }
+          this.quill.setSelection(index + 2, Emitter.sources.USER);
+        }
+        break;
+      default:
+    }
+    this.textbox.value = '';
+    this.hide();
+  }
+}
 
 
 function fillSelect(select, values, defaultValue = false) {
@@ -166,4 +259,4 @@ function fillSelect(select, values, defaultValue = false) {
 }
 
 
-export default BaseTheme;
+export { BaseTooltip, BaseTheme as default };
