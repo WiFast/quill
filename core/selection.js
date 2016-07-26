@@ -87,52 +87,56 @@ class Selection {
   }
 
   getBounds(index, length = 0) {
-    let scrollLength = this.scroll.length();
-    index = Math.min(index, scrollLength - 1);
-    length = Math.min(index + length, scrollLength - 1) - index;
-    let bounds, node, [leaf, offset] = this.scroll.leaf(index);
-    if (leaf == null) return null;
-    [node, offset] = leaf.position(offset, true);
-    let range = document.createRange();
-    if (length > 0) {
-      range.setStart(node, offset);
-      [leaf, offset] = this.scroll.leaf(index + length);
+    try {
+      let scrollLength = this.scroll.length();
+      index = Math.min(index, scrollLength - 1);
+      length = Math.min(index + length, scrollLength - 1) - index;
+      let bounds, node, [leaf, offset] = this.scroll.leaf(index);
       if (leaf == null) return null;
       [node, offset] = leaf.position(offset, true);
-      range.setEnd(node, offset);
-      bounds = range.getBoundingClientRect();
-    } else {
-      let side = 'left';
-      if (node instanceof Text) {
-        if (offset < node.data.length) {
-          range.setStart(node, offset);
-          range.setEnd(node, offset + 1);
-        } else {
-          range.setStart(node, offset - 1);
-          range.setEnd(node, offset);
-          side = 'right';
-        }
-        var rect = range.getBoundingClientRect();
+      let range = document.createRange();
+      if (length > 0) {
+        range.setStart(node, offset);
+        [leaf, offset] = this.scroll.leaf(index + length);
+        if (leaf == null) return null;
+        [node, offset] = leaf.position(offset, true);
+        range.setEnd(node, offset);
+        bounds = range.getBoundingClientRect();
       } else {
-        var rect = leaf.domNode.getBoundingClientRect();
-        if (offset > 0) side = 'right';
+        let side = 'left';
+        if (node instanceof Text) {
+          if (offset < node.data.length) {
+            range.setStart(node, offset);
+            range.setEnd(node, offset + 1);
+          } else {
+            range.setStart(node, offset - 1);
+            range.setEnd(node, offset);
+            side = 'right';
+          }
+          var rect = range.getBoundingClientRect();
+        } else {
+          var rect = leaf.domNode.getBoundingClientRect();
+          if (offset > 0) side = 'right';
+        }
+        bounds = {
+          height: rect.height,
+          left: rect[side],
+          width: 0,
+          top: rect.top
+        };
       }
-      bounds = {
-        height: rect.height,
-        left: rect[side],
-        width: 0,
-        top: rect.top
+      let containerBounds = this.root.parentNode.getBoundingClientRect();
+      return {
+        left: bounds.left - containerBounds.left,
+        right: bounds.left + bounds.width - containerBounds.left,
+        top: bounds.top - containerBounds.top,
+        bottom: bounds.top + bounds.height - containerBounds.top,
+        height: bounds.height,
+        width: bounds.width
       };
+    } catch (e) {
+      return null;
     }
-    let containerBounds = this.root.parentNode.getBoundingClientRect();
-    return {
-      left: bounds.left - containerBounds.left,
-      right: bounds.left + bounds.width - containerBounds.left,
-      top: bounds.top - containerBounds.top,
-      bottom: bounds.top + bounds.height - containerBounds.top,
-      height: bounds.height,
-      width: bounds.width
-    };
   }
 
   getNativeRange() {

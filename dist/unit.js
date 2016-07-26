@@ -5373,80 +5373,84 @@ return /******/ (function(modules) { // webpackBootstrap
 	    value: function getBounds(index) {
 	      var length = arguments.length <= 1 || arguments[1] === undefined ? 0 : arguments[1];
 
-	      var scrollLength = this.scroll.length();
-	      index = Math.min(index, scrollLength - 1);
-	      length = Math.min(index + length, scrollLength - 1) - index;
-	      var bounds = void 0;var node = void 0;
-	      var _scroll$leaf = this.scroll.leaf(index);
+	      try {
+	        var scrollLength = this.scroll.length();
+	        index = Math.min(index, scrollLength - 1);
+	        length = Math.min(index + length, scrollLength - 1) - index;
+	        var bounds = void 0;var node = void 0;
+	        var _scroll$leaf = this.scroll.leaf(index);
 
-	      var _scroll$leaf2 = _slicedToArray(_scroll$leaf, 2);
+	        var _scroll$leaf2 = _slicedToArray(_scroll$leaf, 2);
 
-	      var leaf = _scroll$leaf2[0];
-	      var offset = _scroll$leaf2[1];
-
-	      if (leaf == null) return null;
-
-	      var _leaf$position = leaf.position(offset, true);
-
-	      var _leaf$position2 = _slicedToArray(_leaf$position, 2);
-
-	      node = _leaf$position2[0];
-	      offset = _leaf$position2[1];
-
-	      var range = document.createRange();
-	      if (length > 0) {
-	        range.setStart(node, offset);
-
-	        var _scroll$leaf3 = this.scroll.leaf(index + length);
-
-	        var _scroll$leaf4 = _slicedToArray(_scroll$leaf3, 2);
-
-	        leaf = _scroll$leaf4[0];
-	        offset = _scroll$leaf4[1];
+	        var leaf = _scroll$leaf2[0];
+	        var offset = _scroll$leaf2[1];
 
 	        if (leaf == null) return null;
 
-	        var _leaf$position3 = leaf.position(offset, true);
+	        var _leaf$position = leaf.position(offset, true);
 
-	        var _leaf$position4 = _slicedToArray(_leaf$position3, 2);
+	        var _leaf$position2 = _slicedToArray(_leaf$position, 2);
 
-	        node = _leaf$position4[0];
-	        offset = _leaf$position4[1];
+	        node = _leaf$position2[0];
+	        offset = _leaf$position2[1];
 
-	        range.setEnd(node, offset);
-	        bounds = range.getBoundingClientRect();
-	      } else {
-	        var side = 'left';
-	        if (node instanceof Text) {
-	          if (offset < node.data.length) {
-	            range.setStart(node, offset);
-	            range.setEnd(node, offset + 1);
-	          } else {
-	            range.setStart(node, offset - 1);
-	            range.setEnd(node, offset);
-	            side = 'right';
-	          }
-	          var rect = range.getBoundingClientRect();
+	        var range = document.createRange();
+	        if (length > 0) {
+	          range.setStart(node, offset);
+
+	          var _scroll$leaf3 = this.scroll.leaf(index + length);
+
+	          var _scroll$leaf4 = _slicedToArray(_scroll$leaf3, 2);
+
+	          leaf = _scroll$leaf4[0];
+	          offset = _scroll$leaf4[1];
+
+	          if (leaf == null) return null;
+
+	          var _leaf$position3 = leaf.position(offset, true);
+
+	          var _leaf$position4 = _slicedToArray(_leaf$position3, 2);
+
+	          node = _leaf$position4[0];
+	          offset = _leaf$position4[1];
+
+	          range.setEnd(node, offset);
+	          bounds = range.getBoundingClientRect();
 	        } else {
-	          var rect = leaf.domNode.getBoundingClientRect();
-	          if (offset > 0) side = 'right';
+	          var side = 'left';
+	          if (node instanceof Text) {
+	            if (offset < node.data.length) {
+	              range.setStart(node, offset);
+	              range.setEnd(node, offset + 1);
+	            } else {
+	              range.setStart(node, offset - 1);
+	              range.setEnd(node, offset);
+	              side = 'right';
+	            }
+	            var rect = range.getBoundingClientRect();
+	          } else {
+	            var rect = leaf.domNode.getBoundingClientRect();
+	            if (offset > 0) side = 'right';
+	          }
+	          bounds = {
+	            height: rect.height,
+	            left: rect[side],
+	            width: 0,
+	            top: rect.top
+	          };
 	        }
-	        bounds = {
-	          height: rect.height,
-	          left: rect[side],
-	          width: 0,
-	          top: rect.top
+	        var containerBounds = this.root.parentNode.getBoundingClientRect();
+	        return {
+	          left: bounds.left - containerBounds.left,
+	          right: bounds.left + bounds.width - containerBounds.left,
+	          top: bounds.top - containerBounds.top,
+	          bottom: bounds.top + bounds.height - containerBounds.top,
+	          height: bounds.height,
+	          width: bounds.width
 	        };
+	      } catch (e) {
+	        return null;
 	      }
-	      var containerBounds = this.root.parentNode.getBoundingClientRect();
-	      return {
-	        left: bounds.left - containerBounds.left,
-	        right: bounds.left + bounds.width - containerBounds.left,
-	        top: bounds.top - containerBounds.top,
-	        bottom: bounds.top + bounds.height - containerBounds.top,
-	        height: bounds.height,
-	        width: bounds.width
-	      };
 	    }
 	  }, {
 	    key: 'getNativeRange',
