@@ -7055,7 +7055,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        var suffixText = leafEnd instanceof _parchment2.default.Text ? leafEnd.value().slice(offsetEnd) : '';
 	        var curContext = {
 	          collapsed: range.length === 0,
-	          empty: range.length === 0 && line.length() <= 1,
+	          empty: range.length === 0 && line && line.length() <= 1,
 	          format: _this2.quill.getFormat(range),
 	          offset: offset,
 	          prefix: prefixText,
