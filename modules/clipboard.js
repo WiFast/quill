@@ -48,66 +48,58 @@ class Clipboard extends Module {
     this.matchers.push([selector, matcher]);
   }
 
-  clean() {
-    let treeWalker = document.createTreeWalker(
-      this.container,
-      NodeFilter.SHOW_COMMENT,
-      { acceptNode: function(node) { return NodeFilter.FILTER_ACCEPT; } },
-      false
-    );
-    let comments = [];
-    while(treeWalker.nextNode()) {
-      comments.push(treeWalker.currentNode);
-    }
-    comments.forEach(function(node) {
-      if (node != null && node.parentNode != null) {
-        node.parentNode.removeChild(node);
-      }
-    });
-    this.container.normalize();
-  }
-
   convert(html) {
     const DOM_KEY = '__ql-matcher';
     if (typeof html === 'string') {
       this.container.innerHTML = html;
     }
-    this.clean();
+    let textMatchers = [], elementMatchers = [];
     this.matchers.forEach((pair) => {
       let [selector, matcher] = pair;
-      if (typeof selector === 'string') {
-        [].forEach.call(this.container.querySelectorAll(selector), (node) => {
-          // TODO use weakmap
-          node[DOM_KEY] = node[DOM_KEY] || [];
-          node[DOM_KEY].push(matcher);
-        });
+      switch (selector) {
+        case Node.TEXT_NODE:
+          textMatchers.push(matcher);
+          break;
+        case Node.ELEMENT_NODE:
+          elementMatchers.push(matcher);
+          break;
+        default:
+          [].forEach.call(this.container.querySelectorAll(selector), (node) => {
+            // TODO use weakmap
+            node[DOM_KEY] = node[DOM_KEY] || [];
+            node[DOM_KEY].push(matcher);
+          });
+          break;
       }
     });
     let traverse = (node) => {  // Post-order
-      return [].reduce.call(node.childNodes || [], (delta, childNode) => {
-        if (childNode.nodeType !== Node.ELEMENT_NODE && childNode.nodeType !== Node.TEXT_NODE) {
-          return delta;
-        }
-        let childrenDelta = traverse(childNode);
-        childrenDelta = this.matchers.reduce(function(childrenDelta, pair) {
-          let [type, matcher] = pair;
-          if (type === true || childNode.nodeType === type) {
-            childrenDelta = matcher(childNode, childrenDelta);
+      if (node.nodeType === node.TEXT_NODE) {
+        return textMatchers.reduce(function(delta, matcher) {
+          return matcher(node, delta);
+        }, new Delta());
+      } else if (node.nodeType === node.ELEMENT_NODE) {
+        return [].reduce.call(node.childNodes || [], (delta, childNode) => {
+          let childrenDelta = traverse(childNode);
+          if (childNode.nodeType === node.ELEMENT_NODE) {
+            childrenDelta = elementMatchers.reduce(function(childrenDelta, matcher) {
+              return matcher(childNode, childrenDelta);
+            }, childrenDelta);
+            childrenDelta = (childNode[DOM_KEY] || []).reduce(function(childrenDelta, matcher) {
+              return matcher(childNode, childrenDelta);
+            }, childrenDelta);
           }
-          return childrenDelta;
-        }, childrenDelta);
-        childrenDelta = (childNode[DOM_KEY] || []).reduce(function(childrenDelta, matcher) {
-          return matcher(childNode, childrenDelta);
-        }, childrenDelta);
-        return delta.concat(childrenDelta);
-      }, new Delta());
+          return delta.concat(childrenDelta);
+        }, new Delta());
+      } else {
+        return new Delta();
+      }
     };
     let delta = traverse(this.container);
     // Remove trailing newline
     if (deltaEndsWith(delta, '\n') && delta.ops[delta.ops.length - 1].attributes == null) {
       delta = delta.compose(new Delta().retain(delta.length() - 1).delete(1));
     }
-    debug.info('convert', this.container.innerHTML, delta);
+    debug.log('convert', this.container.innerHTML, delta);
     this.container.innerHTML = '';
     return delta;
   }
@@ -211,19 +203,18 @@ function matchBreak(node, delta) {
 }
 
 function matchNewline(node, delta) {
-  if (!isLine(node)) return delta;
-  if (computeStyle(node).whiteSpace.startsWith('pre') || !deltaEndsWith(delta, '\n')) {
+  if (isLine(node) && !deltaEndsWith(delta, '\n')) {
     delta.insert('\n');
   }
   return delta;
 }
 
 function matchSpacing(node, delta) {
-  if (isLine(node) &&
-      node.nextElementSibling != null &&
-      node.nextElementSibling.offsetTop > node.offsetTop + node.offsetHeight*1.5 &&
-      !deltaEndsWith(delta, '\n\n')) {
-    delta.insert('\n');
+  if (isLine(node) && node.nextElementSibling != null && !deltaEndsWith(delta, '\n\n')) {
+    let nodeHeight = node.offsetHeight + parseFloat(computeStyle(node).marginTop) + parseFloat(computeStyle(node).marginBottom);
+    if (node.nextElementSibling.offsetTop > node.offsetTop + nodeHeight*1.5) {
+      delta.insert('\n');
+    }
   }
   return delta;
 }

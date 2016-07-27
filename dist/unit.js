@@ -70,6 +70,8 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var _quill2 = _interopRequireDefault(_quill);
 
+	__webpack_require__(109);
+
 	__webpack_require__(110);
 
 	__webpack_require__(111);
@@ -109,8 +111,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	__webpack_require__(128);
 
 	__webpack_require__(129);
-
-	__webpack_require__(130);
 
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -220,15 +220,11 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var _tooltip2 = _interopRequireDefault(_tooltip);
 
-	var _linkTooltip = __webpack_require__(106);
-
-	var _linkTooltip2 = _interopRequireDefault(_linkTooltip);
-
-	var _bubble = __webpack_require__(107);
+	var _bubble = __webpack_require__(106);
 
 	var _bubble2 = _interopRequireDefault(_bubble);
 
-	var _snow = __webpack_require__(109);
+	var _snow = __webpack_require__(108);
 
 	var _snow2 = _interopRequireDefault(_snow);
 
@@ -284,8 +280,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  'ui/picker': _picker2.default,
 	  'ui/icon-picker': _iconPicker2.default,
 	  'ui/color-picker': _colorPicker2.default,
-	  'ui/tooltip': _tooltip2.default,
-	  'ui/link-tooltip': _linkTooltip2.default
+	  'ui/tooltip': _tooltip2.default
 	}, true);
 
 	module.exports = _core2.default;
@@ -2023,7 +2018,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	      length = _overload2[1];
 	      source = _overload2[3];
 
-	      this.editor.deleteText(index, length, source);
+	      var range = this.getSelection();
+	      var change = this.editor.deleteText(index, length, source);
+	      range = shiftRange(range, index, -1 * length, source);
+	      this.setSelection(range, _emitter2.default.sources.SILENT);
+	      return change;
 	    }
 	  }, {
 	    key: 'disable',
@@ -2049,15 +2048,18 @@ return /******/ (function(modules) { // webpackBootstrap
 	      var source = arguments.length <= 2 || arguments[2] === undefined ? _emitter2.default.sources.API : arguments[2];
 
 	      var range = this.getSelection();
-	      if (range == null) return;
+	      var change = new _delta2.default();
+	      if (range == null) return change;
 	      if (_parchment2.default.query(name, _parchment2.default.Scope.BLOCK)) {
-	        this.formatLine(range, name, value, source);
+	        change = this.formatLine(range, name, value, source);
 	      } else if (range.length === 0) {
-	        return this.selection.format(name, value);
+	        this.selection.format(name, value);
+	        return change;
 	      } else {
-	        this.formatText(range, name, value, source);
+	        change = this.formatText(range, name, value, source);
 	      }
 	      this.setSelection(range, _emitter2.default.sources.SILENT);
+	      return change;
 	    }
 	  }, {
 	    key: 'formatLine',
@@ -2073,7 +2075,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	      formats = _overload4[2];
 	      source = _overload4[3];
 
-	      this.editor.formatLine(index, length, formats, source);
+	      var range = this.getSelection();
+	      var change = this.editor.formatLine(index, length, formats, source);
+	      this.selection.setRange(range, true, _emitter2.default.sources.SILENT);
+	      this.selection.scrollIntoView();
+	      return change;
 	    }
 	  }, {
 	    key: 'formatText',
@@ -2089,7 +2095,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	      formats = _overload6[2];
 	      source = _overload6[3];
 
-	      this.editor.formatText(index, length, formats, source);
+	      var range = this.getSelection();
+	      var change = this.editor.formatText(index, length, formats, source);
+	      this.selection.setRange(range, true, _emitter2.default.sources.SILENT);
+	      this.selection.scrollIntoView();
+	      return change;
 	    }
 	  }, {
 	    key: 'getBounds',
@@ -2171,12 +2181,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }, {
 	    key: 'insertEmbed',
 	    value: function insertEmbed(index, embed, value, source) {
-	      this.editor.insertEmbed(index, embed, value, source);
+	      var range = this.getSelection();
+	      var change = this.editor.insertEmbed(index, embed, value, source);
+	      range = shiftRange(range, change, source);
+	      this.setSelection(range, _emitter2.default.sources.SILENT);
+	      return change;
 	    }
 	  }, {
 	    key: 'insertText',
 	    value: function insertText(index, text, name, value, source) {
-	      var formats = void 0;
+	      var formats = void 0,
+	          range = this.getSelection();
 
 	      var _overload11 = overload(index, 0, name, value, source);
 
@@ -2186,7 +2201,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	      formats = _overload12[2];
 	      source = _overload12[3];
 
-	      this.editor.insertText(index, text, formats, source);
+	      var change = this.editor.insertText(index, text, formats, source);
+	      range = shiftRange(range, index, text.length, source);
+	      this.setSelection(range, _emitter2.default.sources.SILENT);
+	      return change;
 	    }
 	  }, {
 	    key: 'off',
@@ -2209,15 +2227,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	      var source = arguments.length <= 2 || arguments[2] === undefined ? _emitter2.default.sources.API : arguments[2];
 
 	      if (typeof index === 'string') {
-	        this.setContents(this.clipboard.convert(index), html);
+	        return this.setContents(this.clipboard.convert(index), html);
 	      } else {
 	        var paste = this.clipboard.convert(html);
-	        this.updateContents(new _delta2.default().retain(index).concat(paste), source);
+	        return this.updateContents(new _delta2.default().retain(index).concat(paste), source);
 	      }
 	    }
 	  }, {
 	    key: 'removeFormat',
 	    value: function removeFormat(index, length, source) {
+	      var range = this.getSelection();
+
 	      var _overload13 = overload(index, length, source);
 
 	      var _overload14 = _slicedToArray(_overload13, 4);
@@ -2226,7 +2246,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	      length = _overload14[1];
 	      source = _overload14[3];
 
-	      this.editor.removeFormat(index, length, source);
+	      var change = this.editor.removeFormat(index, length, source);
+	      range = shiftRange(range, change, source);
+	      this.setSelection(range, _emitter2.default.sources.SILENT);
+	      return change;
 	    }
 	  }, {
 	    key: 'setContents',
@@ -2240,7 +2263,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        delta.insert('\n');
 	      }
 	      delta.delete(this.getLength());
-	      this.editor.applyDelta(delta, source);
+	      return this.editor.applyDelta(delta, source);
 	    }
 	  }, {
 	    key: 'setSelection',
@@ -2266,25 +2289,32 @@ return /******/ (function(modules) { // webpackBootstrap
 	      var source = arguments.length <= 1 || arguments[1] === undefined ? _emitter2.default.sources.API : arguments[1];
 
 	      var delta = new _delta2.default().insert(text);
-	      this.setContents(delta, source);
+	      return this.setContents(delta, source);
 	    }
 	  }, {
 	    key: 'update',
 	    value: function update() {
 	      var source = arguments.length <= 0 || arguments[0] === undefined ? _emitter2.default.sources.USER : arguments[0];
 
-	      this.scroll.update(source); // Will update selection before selection.update() does if text changes
+	      var change = this.scroll.update(source); // Will update selection before selection.update() does if text changes
 	      this.selection.update(source);
+	      return change;
 	    }
 	  }, {
 	    key: 'updateContents',
 	    value: function updateContents(delta) {
 	      var source = arguments.length <= 1 || arguments[1] === undefined ? _emitter2.default.sources.API : arguments[1];
 
+	      var range = this.getSelection();
 	      if (Array.isArray(delta)) {
 	        delta = new _delta2.default(delta.slice());
 	      }
-	      this.editor.applyDelta(delta, source);
+	      var change = this.editor.applyDelta(delta, source);
+	      if (range != null) {
+	        range = shiftRange(range, change, source);
+	        this.setSelection(range, _emitter2.default.sources.SILENT);
+	      }
+	      return change;
 	    }
 	  }]);
 
@@ -2336,6 +2366,37 @@ return /******/ (function(modules) { // webpackBootstrap
 	  // Handle optional source
 	  source = source || _emitter2.default.sources.API;
 	  return [index, length, formats, source];
+	}
+
+	function shiftRange(range, index, length, source) {
+	  if (range == null) return null;
+	  var start = void 0,
+	      end = void 0;
+	  if (index instanceof _delta2.default) {
+	    var _map = [range.index, range.index + range.length].map(function (pos) {
+	      return index.transformPosition(pos, source === _emitter2.default.sources.USER);
+	    });
+
+	    var _map2 = _slicedToArray(_map, 2);
+
+	    start = _map2[0];
+	    end = _map2[1];
+	  } else {
+	    var _map3 = [range.index, range.index + range.length].map(function (pos) {
+	      if (pos < index || pos === index && source !== _emitter2.default.sources.USER) return pos;
+	      if (length >= 0) {
+	        return pos + length;
+	      } else {
+	        return Math.max(index, pos + length);
+	      }
+	    });
+
+	    var _map4 = _slicedToArray(_map3, 2);
+
+	    start = _map4[0];
+	    end = _map4[1];
+	  }
+	  return new _selection.Range(start, end - start);
 	}
 
 	exports.overload = overload;
@@ -3721,7 +3782,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        return index + length;
 	      }, 0);
 	      this.updating = false;
-	      this.update(delta, source);
+	      return this.update(delta, source);
 	    }
 	  }, {
 	    key: 'deleteText',
@@ -3729,7 +3790,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      var source = arguments.length <= 2 || arguments[2] === undefined ? _emitter4.default.sources.API : arguments[2];
 
 	      this.scroll.deleteAt(index, length);
-	      this.update(new _delta2.default().retain(index).delete(length), source);
+	      return this.update(new _delta2.default().retain(index).delete(length), source);
 	    }
 	  }, {
 	    key: 'enable',
@@ -3760,7 +3821,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        });
 	      });
 	      this.scroll.optimize();
-	      this.update(new _delta2.default().retain(index).retain(length, (0, _clone2.default)(formats)), source);
+	      return this.update(new _delta2.default().retain(index).retain(length, (0, _clone2.default)(formats)), source);
 	    }
 	  }, {
 	    key: 'formatText',
@@ -3773,7 +3834,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      Object.keys(formats).forEach(function (format) {
 	        _this3.scroll.formatAt(index, length, format, formats[format]);
 	      });
-	      this.update(new _delta2.default().retain(index).retain(length, (0, _clone2.default)(formats)), source);
+	      return this.update(new _delta2.default().retain(index).retain(length, (0, _clone2.default)(formats)), source);
 	    }
 	  }, {
 	    key: 'getContents',
@@ -3836,7 +3897,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      var source = arguments.length <= 3 || arguments[3] === undefined ? _emitter4.default.sources.API : arguments[3];
 
 	      this.scroll.insertAt(index, embed, value);
-	      this.update(new _delta2.default().retain(index).insert(_defineProperty({}, embed, value)), source);
+	      return this.update(new _delta2.default().retain(index).insert(_defineProperty({}, embed, value)), source);
 	    }
 	  }, {
 	    key: 'insertText',
@@ -3851,7 +3912,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      Object.keys(formats).forEach(function (format) {
 	        _this4.scroll.formatAt(index, text.length, format, formats[format]);
 	      });
-	      this.update(new _delta2.default().retain(index).insert(text, (0, _clone2.default)(formats)), source);
+	      return this.update(new _delta2.default().retain(index).insert(text, (0, _clone2.default)(formats)), source);
 	    }
 	  }, {
 	    key: 'isBlank',
@@ -3882,7 +3943,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      var contents = this.getContents(index, length + suffixLength);
 	      var diff = contents.diff(new _delta2.default().insert(text).concat(suffix));
 	      var delta = new _delta2.default().retain(index).concat(diff);
-	      this.applyDelta(delta, source);
+	      return this.applyDelta(delta, source);
 	    }
 	  }, {
 	    key: 'update',
@@ -3906,6 +3967,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	          (_emitter2 = this.emitter).emit.apply(_emitter2, args);
 	        }
 	      }
+	      return change;
 	    }
 	  }]);
 
@@ -4698,10 +4760,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	          this.children.tail.insertAt(this.children.tail.length(), text);
 	        }
 	      }
-	      if (lines.length > 0) {
-	        var next = this.split(index + text.length, true);
-	        next.insertAt(0, lines.join('\n'));
-	      }
+	      var block = this;
+	      lines.reduce(function (index, line) {
+	        block = block.split(index, true);
+	        block.insertAt(0, line);
+	        return line.length;
+	      }, index + text.length);
 	    }
 	  }, {
 	    key: 'insertBefore',
@@ -5247,6 +5311,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	        setTimeout(_this.update.bind(_this, _emitter4.default.sources.USER), 100);
 	      });
 	    });
+	    var scrollTop = void 0;
+	    this.root.addEventListener('blur', function () {
+	      scrollTop = _this.root.scrollTop;
+	    });
+	    this.root.addEventListener('focus', function () {
+	      if (scrollTop == null) return;
+	      _this.root.scrollTop = scrollTop;
+	    });
 	    this.emitter.on(_emitter4.default.events.EDITOR_CHANGE, function (type, delta) {
 	      if (type === _emitter4.default.events.TEXT_CHANGE && delta.length() > 0) {
 	        _this.update(_emitter4.default.sources.SILENT);
@@ -5356,11 +5428,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	          }
 	          var rect = range.getBoundingClientRect();
 	        } else {
-	          if (leaf instanceof _break2.default) {
-	            var rect = leaf.parent.domNode.getBoundingClientRect();
-	          } else {
-	            var rect = leaf.domNode.getBoundingClientRect();
-	          }
+	          var rect = leaf.domNode.getBoundingClientRect();
 	          if (offset > 0) side = 'right';
 	        }
 	        bounds = {
@@ -5467,7 +5535,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        var line = _scroll$line2[0];
 	        var offset = _scroll$line2[1];
 
-	        this.root.scrollTop = line.domNode.offsetTop + line.domNode.offsetHeight;
+	        this.root.scrollTop = line.domNode.offsetTop + line.domNode.offsetHeight - this.root.offsetHeight;
 	      } else if (bounds.top < 0) {
 	        var _scroll$line3 = this.scroll.line(range.index);
 
@@ -5484,6 +5552,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    value: function setNativeRange(startNode, startOffset) {
 	      var endNode = arguments.length <= 2 || arguments[2] === undefined ? startNode : arguments[2];
 	      var endOffset = arguments.length <= 3 || arguments[3] === undefined ? startOffset : arguments[3];
+	      var force = arguments.length <= 4 || arguments[4] === undefined ? false : arguments[4];
 
 	      debug.info('setNativeRange', startNode, startOffset, endNode, endOffset);
 	      if (startNode != null && (this.root.parentNode == null || startNode.parentNode == null || endNode.parentNode == null)) {
@@ -5494,7 +5563,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      if (startNode != null) {
 	        if (!this.hasFocus()) this.root.focus();
 	        var nativeRange = this.getNativeRange();
-	        if (nativeRange == null || startNode !== nativeRange.start.node || startOffset !== nativeRange.start.offset || endNode !== nativeRange.end.node || endOffset !== nativeRange.end.offset) {
+	        if (nativeRange == null || force || startNode !== nativeRange.start.node || startOffset !== nativeRange.start.offset || endNode !== nativeRange.end.node || endOffset !== nativeRange.end.offset) {
 	          var range = document.createRange();
 	          range.setStart(startNode, startOffset);
 	          range.setEnd(endNode, endOffset);
@@ -5512,8 +5581,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	    value: function setRange(range) {
 	      var _this3 = this;
 
-	      var source = arguments.length <= 1 || arguments[1] === undefined ? _emitter4.default.sources.API : arguments[1];
+	      var force = arguments.length <= 1 || arguments[1] === undefined ? false : arguments[1];
+	      var source = arguments.length <= 2 || arguments[2] === undefined ? _emitter4.default.sources.API : arguments[2];
 
+	      if (typeof force === 'string') {
+	        source = force;
+	        force = false;
+	      }
 	      debug.info('setRange', range);
 	      if (range != null) {
 	        (function () {
@@ -5539,7 +5613,10 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	            args.push(node, offset);
 	          });
-	          _this3.setNativeRange.apply(_this3, args);
+	          if (args.length < 2) {
+	            args = args.concat(args);
+	          }
+	          _this3.setNativeRange.apply(_this3, _toConsumableArray(args).concat([force]));
 	        })();
 	      } else {
 	        this.setNativeRange(null);
@@ -6050,8 +6127,24 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	  }, {
 	    key: 'lines',
-	    value: function lines(index, length) {
-	      return this.descendants(isLine, index, length);
+	    value: function lines() {
+	      var index = arguments.length <= 0 || arguments[0] === undefined ? 0 : arguments[0];
+	      var length = arguments.length <= 1 || arguments[1] === undefined ? Number.MAX_VALUE : arguments[1];
+
+	      var getLines = function getLines(blot, index, length) {
+	        var lines = [],
+	            lengthLeft = length;
+	        blot.children.forEachAt(index, length, function (child, index, length) {
+	          if (isLine(child)) {
+	            lines.push(child);
+	          } else if (child instanceof _parchment2.default.Container) {
+	            lines = lines.concat(getLines(child, index, lengthLeft));
+	          }
+	          lengthLeft -= length;
+	        });
+	        return lines;
+	      };
+	      return getLines(this, index, length);
 	    }
 	  }, {
 	    key: 'optimize',
@@ -6196,23 +6289,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	      this.matchers.push([selector, matcher]);
 	    }
 	  }, {
-	    key: 'clean',
-	    value: function clean() {
-	      var treeWalker = document.createTreeWalker(this.container, NodeFilter.SHOW_COMMENT, { acceptNode: function acceptNode(node) {
-	          return NodeFilter.FILTER_ACCEPT;
-	        } }, false);
-	      var comments = [];
-	      while (treeWalker.nextNode()) {
-	        comments.push(treeWalker.currentNode);
-	      }
-	      comments.forEach(function (node) {
-	        if (node != null && node.parentNode != null) {
-	          node.parentNode.removeChild(node);
-	        }
-	      });
-	      this.container.normalize();
-	    }
-	  }, {
 	    key: 'convert',
 	    value: function convert(html) {
 	      var _this2 = this;
@@ -6221,51 +6297,59 @@ return /******/ (function(modules) { // webpackBootstrap
 	      if (typeof html === 'string') {
 	        this.container.innerHTML = html;
 	      }
-	      this.clean();
+	      var textMatchers = [],
+	          elementMatchers = [];
 	      this.matchers.forEach(function (pair) {
 	        var _pair = _slicedToArray(pair, 2);
 
 	        var selector = _pair[0];
 	        var matcher = _pair[1];
 
-	        if (typeof selector === 'string') {
-	          [].forEach.call(_this2.container.querySelectorAll(selector), function (node) {
-	            // TODO use weakmap
-	            node[DOM_KEY] = node[DOM_KEY] || [];
-	            node[DOM_KEY].push(matcher);
-	          });
+	        switch (selector) {
+	          case Node.TEXT_NODE:
+	            textMatchers.push(matcher);
+	            break;
+	          case Node.ELEMENT_NODE:
+	            elementMatchers.push(matcher);
+	            break;
+	          default:
+	            [].forEach.call(_this2.container.querySelectorAll(selector), function (node) {
+	              // TODO use weakmap
+	              node[DOM_KEY] = node[DOM_KEY] || [];
+	              node[DOM_KEY].push(matcher);
+	            });
+	            break;
 	        }
 	      });
 	      var traverse = function traverse(node) {
 	        // Post-order
-	        return [].reduce.call(node.childNodes || [], function (delta, childNode) {
-	          if (childNode.nodeType !== Node.ELEMENT_NODE && childNode.nodeType !== Node.TEXT_NODE) {
-	            return delta;
-	          }
-	          var childrenDelta = traverse(childNode);
-	          childrenDelta = _this2.matchers.reduce(function (childrenDelta, pair) {
-	            var _pair2 = _slicedToArray(pair, 2);
-
-	            var type = _pair2[0];
-	            var matcher = _pair2[1];
-
-	            if (type === true || childNode.nodeType === type) {
-	              childrenDelta = matcher(childNode, childrenDelta);
+	        if (node.nodeType === node.TEXT_NODE) {
+	          return textMatchers.reduce(function (delta, matcher) {
+	            return matcher(node, delta);
+	          }, new _delta2.default());
+	        } else if (node.nodeType === node.ELEMENT_NODE) {
+	          return [].reduce.call(node.childNodes || [], function (delta, childNode) {
+	            var childrenDelta = traverse(childNode);
+	            if (childNode.nodeType === node.ELEMENT_NODE) {
+	              childrenDelta = elementMatchers.reduce(function (childrenDelta, matcher) {
+	                return matcher(childNode, childrenDelta);
+	              }, childrenDelta);
+	              childrenDelta = (childNode[DOM_KEY] || []).reduce(function (childrenDelta, matcher) {
+	                return matcher(childNode, childrenDelta);
+	              }, childrenDelta);
 	            }
-	            return childrenDelta;
-	          }, childrenDelta);
-	          childrenDelta = (childNode[DOM_KEY] || []).reduce(function (childrenDelta, matcher) {
-	            return matcher(childNode, childrenDelta);
-	          }, childrenDelta);
-	          return delta.concat(childrenDelta);
-	        }, new _delta2.default());
+	            return delta.concat(childrenDelta);
+	          }, new _delta2.default());
+	        } else {
+	          return new _delta2.default();
+	        }
 	      };
 	      var delta = traverse(this.container);
 	      // Remove trailing newline
 	      if (deltaEndsWith(delta, '\n') && delta.ops[delta.ops.length - 1].attributes == null) {
 	        delta = delta.compose(new _delta2.default().retain(delta.length() - 1).delete(1));
 	      }
-	      debug.info('convert', this.container.innerHTML, delta);
+	      debug.log('convert', this.container.innerHTML, delta);
 	      this.container.innerHTML = '';
 	      return delta;
 	    }
@@ -6365,16 +6449,18 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 
 	function matchNewline(node, delta) {
-	  if (!isLine(node)) return delta;
-	  if (computeStyle(node).whiteSpace.startsWith('pre') || !deltaEndsWith(delta, '\n')) {
+	  if (isLine(node) && !deltaEndsWith(delta, '\n')) {
 	    delta.insert('\n');
 	  }
 	  return delta;
 	}
 
 	function matchSpacing(node, delta) {
-	  if (isLine(node) && node.nextElementSibling != null && node.nextElementSibling.offsetTop > node.offsetTop + node.offsetHeight * 1.5 && !deltaEndsWith(delta, '\n\n')) {
-	    delta.insert('\n');
+	  if (isLine(node) && node.nextElementSibling != null && !deltaEndsWith(delta, '\n\n')) {
+	    var nodeHeight = node.offsetHeight + parseFloat(computeStyle(node).marginTop) + parseFloat(computeStyle(node).marginBottom);
+	    if (node.nextElementSibling.offsetTop > node.offsetTop + nodeHeight * 1.5) {
+	      delta.insert('\n');
+	    }
 	  }
 	  return delta;
 	}
@@ -6899,13 +6985,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	    _this.addBinding({ key: Keyboard.keys.BACKSPACE }, { collapsed: true, prefix: /^$/ }, function (range) {
 	      if (range.index === 0) return;
 	      this.quill.deleteText(range.index - 1, 1, _quill2.default.sources.USER);
-	      this.quill.setSelection(range.index - 1, _quill2.default.sources.SILENT);
 	      this.quill.selection.scrollIntoView();
 	    });
 	    _this.addBinding({ key: Keyboard.keys.DELETE }, { collapsed: true, suffix: /^$/ }, function (range) {
 	      if (range.index >= this.quill.getLength() - 1) return;
 	      this.quill.deleteText(range.index, 1, _quill2.default.sources.USER);
-	      this.quill.setSelection(range.index, _quill2.default.sources.SILENT);
 	    });
 	    _this.addBinding({ key: Keyboard.keys.BACKSPACE }, { collapsed: false }, handleDelete);
 	    _this.addBinding({ key: Keyboard.keys.DELETE }, { collapsed: false }, handleDelete);
@@ -7059,7 +7143,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	        this.quill.scroll.deleteAt(range.index, range.length);
 	      }
 	      this.quill.insertText(range.index, '\t', _quill2.default.sources.USER);
-	      this.quill.setSelection(range.index + 1, _quill2.default.sources.SILENT);
 	    }],
 	    'list empty enter': [{ key: Keyboard.keys.ENTER }, { collapsed: true, format: ['list'], empty: true }, function (range, context) {
 	      this.quill.format('list', false, _quill2.default.sources.USER);
@@ -7101,7 +7184,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	    return lineFormats;
 	  }, {});
 	  this.quill.insertText(range.index, '\n', lineFormats, _quill2.default.sources.USER);
-	  this.quill.setSelection(range.index + 1, _quill2.default.sources.SILENT);
 	  this.quill.selection.scrollIntoView();
 	  Object.keys(context.format).forEach(function (name) {
 	    if (lineFormats[name] != null) return;
@@ -7113,37 +7195,42 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	function makeCodeBlockHandler(indent) {
 	  var handler = function handler(range) {
-	    var tab = _parchment2.default.query('code-block').TAB;
+	    var CodeBlock = _parchment2.default.query('code-block');
 	    var index = range.index,
 	        length = range.length;
-	    var lines = [];
-	    if (range.length === 0) {
-	      var _quill$scroll$line3 = this.quill.scroll.line(range.index);
 
-	      var _quill$scroll$line4 = _slicedToArray(_quill$scroll$line3, 1);
+	    var _quill$scroll$descend = this.quill.scroll.descendant(CodeBlock, index);
 
-	      var line = _quill$scroll$line4[0];
+	    var _quill$scroll$descend2 = _slicedToArray(_quill$scroll$descend, 2);
 
-	      lines.push(line);
-	    } else {
-	      lines = this.quill.scroll.lines(range.index, range.length);
-	    }
+	    var block = _quill$scroll$descend2[0];
+	    var offset = _quill$scroll$descend2[1];
+
+	    if (block == null) return;
+	    var scrollOffset = this.quill.scroll.offset(block);
+	    var start = block.newlineIndex(offset, true) + 1;
+	    var end = block.newlineIndex(scrollOffset + offset + length);
+	    var lines = block.domNode.textContent.slice(start, end).split('\n');
+	    offset = 0;
 	    lines.forEach(function (line, i) {
 	      if (indent) {
-	        line.insertAt(0, tab);
+	        block.insertAt(start + offset, CodeBlock.TAB);
+	        offset += CodeBlock.TAB.length;
 	        if (i === 0) {
-	          index += tab.length;
+	          index += CodeBlock.TAB.length;
 	        } else {
-	          length += tab.length;
+	          length += CodeBlock.TAB.length;
 	        }
-	      } else if (line.domNode.textContent.startsWith(tab)) {
-	        line.deleteAt(0, tab.length);
+	      } else if (line.startsWith(CodeBlock.TAB)) {
+	        block.deleteAt(start + offset, CodeBlock.TAB.length);
+	        offset -= CodeBlock.TAB.length;
 	        if (i === 0) {
-	          index -= tab.length;
+	          index -= CodeBlock.TAB.length;
 	        } else {
-	          length -= tab.length;
+	          length -= CodeBlock.TAB.length;
 	        }
 	      }
+	      offset += line.length + 1;
 	    });
 	    this.quill.update(_quill2.default.sources.USER);
 	    this.quill.setSelection(index, length, _quill2.default.sources.SILENT);
@@ -7417,7 +7504,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    key: 'replaceWith',
 	    value: function replaceWith(name, value) {
 	      this.parent.isolate(this.offset(this.parent), this.length());
-	      if (name === List.blotName) {
+	      if (name === this.parent.statics.blotName) {
 	        this.parent.replaceWith(name, value);
 	        return this;
 	      } else {
@@ -7428,7 +7515,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }], [{
 	    key: 'formats',
 	    value: function formats(domNode) {
-	      return domNode.tagName === ListItem.tagName ? undefined : _get(Object.getPrototypeOf(ListItem), 'formats', this).call(this, domNode);
+	      return domNode.tagName === this.tagName ? undefined : _get(Object.getPrototypeOf(ListItem), 'formats', this).call(this, domNode);
 	    }
 	  }]);
 
@@ -8110,36 +8197,18 @@ return /******/ (function(modules) { // webpackBootstrap
 	      if (this.cachedHTML !== this.domNode.innerHTML) {
 	        var text = this.domNode.textContent;
 	        if (text.trim().length > 0 || this.cachedHTML == null) {
-	          this.domNode.textContent = text;
-	          _highlight(this.domNode);
+	          this.domNode.innerHTML = _highlight(text);
 	          this.attach();
 	        }
 	        this.cachedHTML = this.domNode.innerHTML;
 	      }
-	    }
-	  }], [{
-	    key: 'create',
-	    value: function create(value) {
-	      var domNode = _get(Object.getPrototypeOf(SyntaxCodeBlock), 'create', this).call(this, value);
-	      if (typeof value === 'string') {
-	        domNode.dataset.language = value;
-	      } else {
-	        domNode.dataset.language = SyntaxCodeBlock.DEFAULT_LANGUAGE;
-	      }
-	      domNode.classList.add(domNode.dataset.language);
-	      return domNode;
-	    }
-	  }, {
-	    key: 'formats',
-	    value: function formats(domNode) {
-	      return domNode.dataset.language || SyntaxCodeBlock.DEFAULT_LANGUAGE;
 	    }
 	  }]);
 
 	  return SyntaxCodeBlock;
 	}(_code2.default);
 
-	SyntaxCodeBlock.DEFAULT_LANGUAGE = 'javascript';
+	SyntaxCodeBlock.className = 'ql-syntax';
 
 	var CodeToken = new _parchment2.default.Attributor.Class('token', 'hljs', {
 	  scope: _parchment2.default.Scope.INLINE
@@ -8154,7 +8223,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var _this2 = _possibleConstructorReturn(this, Object.getPrototypeOf(Syntax).call(this, quill, options));
 
 	    if (typeof _this2.options.highlight !== 'function') {
-	      throw new Error('Syntax module requires highlight.js. Please include the library on the page.');
+	      throw new Error('Syntax module requires highlight.js. Please include the library on the page before Quill.');
 	    }
 	    _quill2.default.register(CodeToken, true);
 	    _quill2.default.register(SyntaxCodeBlock, true);
@@ -8190,7 +8259,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	}(_module2.default);
 
 	Syntax.DEFAULTS = {
-	  highlight: window.hljs != null ? window.hljs.highlightBlock : null
+	  highlight: function () {
+	    if (window.hljs == null) return null;
+	    return function (text) {
+	      var result = window.hljs.highlightAuto(text);
+	      return result.value;
+	    };
+	  }()
 	};
 
 	exports.CodeBlock = SyntaxCodeBlock;
@@ -8281,10 +8356,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	    Object.keys(_this.options.handlers).forEach(function (format) {
 	      _this.addHandler(format, _this.options.handlers[format]);
 	    });
+	    _this.container.addEventListener('mousedown', function (e) {
+	      e.preventDefault(); // Prevent blur
+	    });
 	    [].forEach.call(_this.container.querySelectorAll('button, select'), function (input) {
 	      _this.attach(input);
 	    });
-	    _this.quill.on(_quill2.default.events.SELECTION_CHANGE, _this.update, _this);
+	    _this.quill.on(_quill2.default.events.EDITOR_CHANGE, function (type, range) {
+	      if (type === _quill2.default.events.SELECTION_CHANGE) {
+	        _this.update(range);
+	      }
+	    });
 	    _this.quill.on(_quill2.default.events.SCROLL_OPTIMIZE, function () {
 	      var _this$quill$selection = _this.quill.selection.getRange();
 
@@ -8325,41 +8407,37 @@ return /******/ (function(modules) { // webpackBootstrap
 	          return;
 	        }
 	      }
-	      var eventNames = input.tagName === 'SELECT' ? ['change'] : ['mousedown', 'touchstart'];
-	      eventNames.forEach(function (eventName) {
-	        input.addEventListener(eventName, function (e) {
-	          var value = void 0;
-	          if (input.tagName === 'SELECT') {
-	            if (input.selectedIndex < 0) return;
-	            var selected = input.options[input.selectedIndex];
-	            if (selected.hasAttribute('selected')) {
-	              value = false;
-	            } else {
-	              value = selected.value || false;
-	            }
+	      var eventName = input.tagName === 'SELECT' ? 'change' : 'click';
+	      input.addEventListener(eventName, function (e) {
+	        var value = void 0;
+	        if (input.tagName === 'SELECT') {
+	          if (input.selectedIndex < 0) return;
+	          var selected = input.options[input.selectedIndex];
+	          if (selected.hasAttribute('selected')) {
+	            value = false;
 	          } else {
-	            value = input.classList.contains('ql-active') ? false : input.value || true;
-	            e.preventDefault();
+	            value = selected.value || false;
 	          }
-	          _this2.quill.focus();
+	        } else {
+	          value = input.classList.contains('ql-active') ? false : input.value || true;
+	          e.preventDefault();
+	        }
+	        _this2.quill.focus();
 
-	          var _quill$selection$getR = _this2.quill.selection.getRange();
+	        var _quill$selection$getR = _this2.quill.selection.getRange();
 
-	          var _quill$selection$getR2 = _slicedToArray(_quill$selection$getR, 1);
+	        var _quill$selection$getR2 = _slicedToArray(_quill$selection$getR, 1);
 
-	          var range = _quill$selection$getR2[0];
+	        var range = _quill$selection$getR2[0];
 
-	          if (_this2.handlers[format] != null) {
-	            _this2.handlers[format].call(_this2, value);
-	          } else if (_parchment2.default.query(format).prototype instanceof _parchment2.default.Embed) {
-	            _this2.quill.updateContents(new _delta2.default().retain(range.index).delete(range.length).insert(_defineProperty({}, format, true)), _quill2.default.sources.USER);
-	            range = new _selection.Range(range.index + 1, 0);
-	            _this2.quill.setSelection(range, _quill2.default.sources.SILENT);
-	          } else {
-	            _this2.quill.format(format, value, _quill2.default.sources.USER);
-	          }
-	          _this2.update(range);
-	        });
+	        if (_this2.handlers[format] != null) {
+	          _this2.handlers[format].call(_this2, value);
+	        } else if (_parchment2.default.query(format).prototype instanceof _parchment2.default.Embed) {
+	          _this2.quill.updateContents(new _delta2.default().retain(range.index).delete(range.length).insert(_defineProperty({}, format, true)), _quill2.default.sources.USER);
+	        } else {
+	          _this2.quill.format(format, value, _quill2.default.sources.USER);
+	        }
+	        _this2.update(range);
 	      });
 	      // TODO use weakmap
 	      this.controls.push([format, input]);
@@ -8367,8 +8445,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }, {
 	    key: 'update',
 	    value: function update(range) {
-	      if (range == null) return;
-	      var formats = this.quill.getFormat(range);
+	      var formats = range == null ? {} : this.quill.getFormat(range);
 	      this.controls.forEach(function (pair) {
 	        var _pair = _slicedToArray(pair, 2);
 
@@ -8380,7 +8457,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	          if (formats[format] == null) {
 	            option = input.querySelector('option[selected]');
 	          } else if (!Array.isArray(formats[format])) {
-	            option = input.querySelector('option[value="' + formats[format].replace(/\"/g, "\'") + '"]');
+	            var value = formats[format];
+	            if (typeof value === 'string') {
+	              value = value.replace(/\"/g, '&quot;');
+	            }
+	            option = input.querySelector('option[value="' + value + '"]');
 	          }
 	          if (option == null) {
 	            input.value = ''; // TODO make configurable?
@@ -8392,7 +8473,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	          var active = input.value === formats[format] || formats[format] != null && input.value === formats[format].toString();
 	          input.classList.toggle('ql-active', active);
 	        } else {
-	          input.classList.toggle('ql-active', formats[format] === true || false);
+	          input.classList.toggle('ql-active', formats[format] === true || format === 'link' && formats[format] != null);
 	        }
 	      });
 	    }
@@ -8463,16 +8544,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	      if (range.length == 0) {
 	        var formats = this.quill.getFormat();
 	        Object.keys(formats).forEach(function (name) {
+	          // Clean functionality in existing apps only clean inline formats
 	          if (_parchment2.default.query(name, _parchment2.default.Scope.INLINE) != null) {
 	            _this3.quill.format(name, false);
 	          }
 	        });
 	      } else {
-	        var startLength = this.quill.getLength();
 	        this.quill.removeFormat(range, _quill2.default.sources.USER);
-	        var endLength = this.quill.getLength();
-	        // account for embed removals
-	        this.quill.setSelection(range.index, range.length - (startLength - endLength), _quill2.default.sources.SILENT);
 	      }
 	    },
 	    direction: function direction(value) {
@@ -8773,11 +8851,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	    this.buildPicker();
 	    this.select.style.display = 'none';
 	    this.select.parentNode.insertBefore(this.container, this.select);
-	    ['mousedown', 'touchstart'].forEach(function (name) {
-	      _this.label.addEventListener(name, function (event) {
-	        _this.container.classList.toggle('ql-expanded');
-	        event.preventDefault(); // prevent focus loss
-	      });
+	    this.label.addEventListener('click', function (event) {
+	      _this.container.classList.toggle('ql-expanded');
 	    });
 	    this.select.addEventListener('change', this.update.bind(this));
 	  }
@@ -8795,11 +8870,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	      if (option.textContent) {
 	        item.dataset.label = option.textContent;
 	      }
-	      ['mousedown', 'touchstart'].forEach(function (name) {
-	        item.addEventListener(name, function (event) {
-	          _this2.selectItem(item, true);
-	          event.preventDefault();
-	        });
+	      item.addEventListener('click', function (event) {
+	        _this2.selectItem(item, true);
 	      });
 	      return item;
 	    }
@@ -9019,7 +9091,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	    [].forEach.call(_this.container.querySelectorAll('.ql-picker-item'), function (item) {
 	      item.innerHTML = icons[item.dataset.value || ''];
 	    });
-	    _this.selectItem(_this.container.querySelector('.ql-selected'));
+	    _this.defaultItem = _this.container.querySelector('.ql-selected');
+	    _this.selectItem(_this.defaultItem);
 	    return _this;
 	  }
 
@@ -9027,6 +9100,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    key: 'selectItem',
 	    value: function selectItem(item, trigger) {
 	      _get(Object.getPrototypeOf(IconPicker.prototype), 'selectItem', this).call(this, item, trigger);
+	      item = item || this.defaultItem;
 	      this.label.innerHTML = item.innerHTML;
 	    }
 	  }]);
@@ -9051,38 +9125,43 @@ return /******/ (function(modules) { // webpackBootstrap
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 	var Tooltip = function () {
-	  function Tooltip(root) {
+	  function Tooltip(quill, boundsContainer) {
 	    var _this = this;
-
-	    var containers = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
 	    _classCallCheck(this, Tooltip);
 
-	    this.containers = containers;
-	    this.root = root;
-	    this.root.classList.add('ql-tooltip');
-	    if (this.containers.scroll instanceof HTMLElement) {
-	      (function () {
-	        var offset = parseInt(window.getComputedStyle(_this.root).marginTop);
-	        _this.containers.scroll.addEventListener('scroll', function () {
-	          _this.root.style.marginTop = -1 * _this.containers.scroll.scrollTop + offset + 'px';
-	        });
-	      })();
-	    }
+	    this.quill = quill;
+	    this.boundsContainer = boundsContainer;
+	    this.root = quill.addContainer('ql-tooltip');
+	    this.root.innerHTML = this.constructor.TEMPLATE;
+	    var offset = parseInt(window.getComputedStyle(this.root).marginTop);
+	    this.quill.root.addEventListener('scroll', function () {
+	      _this.root.style.marginTop = -1 * _this.quill.root.scrollTop + offset + 'px';
+	      _this.checkBounds();
+	    });
+	    this.hide();
 	  }
 
 	  _createClass(Tooltip, [{
+	    key: 'checkBounds',
+	    value: function checkBounds() {
+	      this.root.classList.toggle('ql-out-top', this.root.offsetTop <= 0);
+	      this.root.classList.remove('ql-out-bottom');
+	      this.root.classList.toggle('ql-out-bottom', this.root.offsetTop + this.root.offsetHeight >= this.quill.root.offsetHeight);
+	    }
+	  }, {
+	    key: 'hide',
+	    value: function hide() {
+	      this.root.classList.add('ql-hidden');
+	    }
+	  }, {
 	    key: 'position',
 	    value: function position(reference) {
 	      var left = reference.left + reference.width / 2 - this.root.offsetWidth / 2;
-	      var top = reference.bottom;
-	      if (this.containers.scroll instanceof HTMLElement) {
-	        top += this.containers.scroll.scrollTop;
-	      }
+	      var top = reference.bottom + this.quill.root.scrollTop;
 	      this.root.style.left = left + 'px';
 	      this.root.style.top = top + 'px';
-	      if (!(this.containers.bounds instanceof HTMLElement)) return;
-	      var containerBounds = this.containers.bounds.getBoundingClientRect();
+	      var containerBounds = this.boundsContainer.getBoundingClientRect();
 	      var rootBounds = this.root.getBoundingClientRect();
 	      var shift = 0;
 	      if (rootBounds.right > containerBounds.right) {
@@ -9093,22 +9172,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	        shift = containerBounds.left - rootBounds.left;
 	        this.root.style.left = left + shift + 'px';
 	      }
-	      var arrow = this.root.querySelector('.ql-tooltip-arrow');
-	      if (arrow == null) return;
-	      arrow.style.marginLeft = '';
-	      if (shift !== 0) {
-	        arrow.style.marginLeft = -1 * shift - arrow.offsetWidth / 2 + 'px';
-	      }
+	      this.checkBounds();
+	      return shift;
 	    }
 	  }, {
 	    key: 'show',
 	    value: function show() {
+	      this.root.classList.remove('ql-editing');
 	      this.root.classList.remove('ql-hidden');
-	    }
-	  }, {
-	    key: 'hide',
-	    value: function hide() {
-	      this.root.classList.add('ql-hidden');
 	    }
 	  }]);
 
@@ -9127,168 +9198,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  value: true
 	});
 
-	var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
-
-	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-	var _quill = __webpack_require__(19);
-
-	var _quill2 = _interopRequireDefault(_quill);
-
-	var _selection = __webpack_require__(40);
-
-	var _keyboard = __webpack_require__(53);
-
-	var _keyboard2 = _interopRequireDefault(_keyboard);
-
-	var _link = __webpack_require__(60);
-
-	var _link2 = _interopRequireDefault(_link);
-
-	var _tooltip = __webpack_require__(105);
-
-	var _tooltip2 = _interopRequireDefault(_tooltip);
-
-	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-	var LinkTooltip = function () {
-	  function LinkTooltip(quill) {
-	    var _this = this;
-
-	    _classCallCheck(this, LinkTooltip);
-
-	    this.quill = quill;
-	    this.container = this.quill.addContainer('ql-link-tooltip');
-	    this.container.innerHTML = this.constructor.TEMPLATE;
-	    this.tooltip = new _tooltip2.default(this.container, {
-	      bounds: quill.theme.options.bounds,
-	      scroll: quill.root
-	    });
-	    this.hide();
-	    this.preview = this.container.querySelector('a.ql-preview');
-	    this.textbox = this.container.querySelector('input[type=text]');
-	    this.textbox.addEventListener('keydown', function (event) {
-	      if (_keyboard2.default.match(event, 'enter')) {
-	        _this.save();
-	        event.preventDefault();
-	      } else if (_keyboard2.default.match(event, 'escape')) {
-	        _this.hide();
-	        event.preventDefault();
-	      }
-	    });
-	    ['mousedown', 'touchstart'].forEach(function (name) {
-	      _this.container.querySelector('a.ql-action').addEventListener(name, function (event) {
-	        if (_this.container.classList.contains('ql-editing')) {
-	          _this.save();
-	          event.preventDefault();
-	        } else {
-	          _this.edit();
-	          event.preventDefault();
-	        }
-	      });
-	      _this.container.querySelector('a.ql-remove').addEventListener(name, function (event) {
-	        _this.remove();
-	        event.preventDefault();
-	      });
-	    });
-	    quill.on(_quill2.default.events.SELECTION_CHANGE, function (range) {
-	      if (range == null && document.activeElement == _this.textbox) return;
-	      if (range != null && range.length === 0) {
-	        var offset = void 0;
-
-	        var _quill$scroll$descend = _this.quill.scroll.descendant(_link2.default, range.index);
-
-	        var _quill$scroll$descend2 = _slicedToArray(_quill$scroll$descend, 2);
-
-	        _this.link = _quill$scroll$descend2[0];
-	        offset = _quill$scroll$descend2[1];
-
-	        if (_this.link != null) {
-	          _this.range = new _selection.Range(range.index - offset, _this.link.length());
-	          return _this.show();
-	        }
-	      }
-	      _this.hide();
-	    });
-	  }
-
-	  _createClass(LinkTooltip, [{
-	    key: 'edit',
-	    value: function edit() {
-	      this.container.classList.add('ql-editing');
-	      this.textbox.focus();
-	      this.textbox.setSelectionRange(0, this.textbox.value.length);
-	    }
-	  }, {
-	    key: 'open',
-	    value: function open() {
-	      this.range = new _selection.Range(this.quill.selection.savedRange.index, this.quill.selection.savedRange.length);
-	      this.show();
-	      this.edit();
-	    }
-	  }, {
-	    key: 'hide',
-	    value: function hide() {
-	      this.range = this.link = null;
-	      this.tooltip.hide();
-	    }
-	  }, {
-	    key: 'remove',
-	    value: function remove() {
-	      this.quill.formatText(this.range, 'link', false, _quill2.default.sources.USER);
-	      this.quill.setSelection(this.range, _quill2.default.sources.SILENT);
-	      this.hide();
-	    }
-	  }, {
-	    key: 'save',
-	    value: function save() {
-	      var url = this.textbox.value;
-	      var scrollTop = this.quill.root.scrollTop;
-	      this.quill.formatText(this.range, 'link', url, _quill2.default.sources.USER);
-	      this.quill.setSelection(this.range, _quill2.default.sources.SILENT);
-	      this.quill.root.scrollTop = scrollTop;
-	      this.hide();
-	    }
-	  }, {
-	    key: 'show',
-	    value: function show() {
-	      this.container.classList.remove('ql-editing');
-	      this.tooltip.show();
-	      var preview = void 0,
-	          bounds = void 0;
-	      var range = this.quill.selection.savedRange;
-	      if (this.link != null) {
-	        preview = this.link.formats()['link'];
-	      } else {
-	        preview = this.quill.getText(range);
-	        if (/^\S+@\S+\.\S+$/.test(preview)) {
-	          preview = 'mailto:' + preview;
-	        }
-	      }
-	      this.preview.textContent = this.textbox.value = preview;
-	      this.preview.setAttribute('href', preview);
-	      this.tooltip.position(this.quill.getBounds(this.range));
-	    }
-	  }]);
-
-	  return LinkTooltip;
-	}();
-
-	LinkTooltip.TEMPLATE = ['<a class="ql-preview" target="_blank" href="about:blank"></a>', '<input type="text">', '<a class="ql-action"></a>', '<a class="ql-remove"></a>'].join('');
-
-	exports.default = LinkTooltip;
-
-/***/ },
-/* 107 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	Object.defineProperty(exports, "__esModule", {
-	  value: true
-	});
+	var _get = function get(object, property, receiver) { if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
 
 	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
@@ -9300,7 +9210,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var _keyboard2 = _interopRequireDefault(_keyboard);
 
-	var _base = __webpack_require__(108);
+	var _base = __webpack_require__(107);
 
 	var _base2 = _interopRequireDefault(_base);
 
@@ -9309,10 +9219,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	var _icons2 = _interopRequireDefault(_icons);
 
 	var _selection = __webpack_require__(40);
-
-	var _tooltip = __webpack_require__(105);
-
-	var _tooltip2 = _interopRequireDefault(_tooltip);
 
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -9335,95 +9241,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 
 	  _createClass(BubbleTheme, [{
-	    key: 'buildLinkEditor',
-	    value: function buildLinkEditor(toolbar) {
-	      var _this2 = this;
-
-	      var container = document.createElement('div');
-	      container.classList.add('ql-link-editor');
-	      var arrow = document.createElement('span');
-	      arrow.classList.add('ql-tooltip-arrow');
-	      var input = document.createElement('input');
-	      input.setAttribute('type', 'text');
-	      var close = document.createElement('a');
-	      container.appendChild(input);
-	      container.appendChild(close);
-	      this.tooltip.root.appendChild(arrow);
-	      this.tooltip.root.appendChild(container);
-	      this.quill.on(_emitter2.default.events.SELECTION_CHANGE, function (range) {
-	        if (range != null && range.length > 0) {
-	          _this2.tooltip.root.classList.remove('ql-editing');
-	          _this2.tooltip.show();
-	          // Lock our width so we will expand beyond our offsetParent boundaries
-	          _this2.tooltip.root.style.left = '0px';
-	          _this2.tooltip.root.style.width = '';
-	          _this2.tooltip.root.style.width = _this2.tooltip.root.offsetWidth + 'px';
-	          var lines = _this2.quill.scroll.lines(range.index, range.length);
-	          if (lines.length === 1) {
-	            _this2.tooltip.position(_this2.quill.getBounds(range));
-	          } else {
-	            var lastLine = lines[lines.length - 1];
-	            var index = lastLine.offset(_this2.quill.scroll);
-	            var length = Math.min(lastLine.length() - 1, range.index + range.length - index);
-	            var bounds = _this2.quill.getBounds(new _selection.Range(index, length));
-	            _this2.tooltip.position(bounds);
-	          }
-	        } else if (document.activeElement !== input && !!_this2.quill.hasFocus()) {
-	          _this2.tooltip.hide();
-	        }
-	      });
-	      this.quill.on(_emitter2.default.events.SCROLL_OPTIMIZE, function () {
-	        // Let selection be restored by toolbar handlers before repositioning
-	        setTimeout(function () {
-	          if (_this2.tooltip.root.classList.contains('ql-hidden')) return;
-	          var range = _this2.quill.getSelection();
-	          if (range != null) {
-	            _this2.tooltip.position(_this2.quill.getBounds(range));
-	          }
-	        }, 1);
-	      });
-	      toolbar.handlers['link'] = function (value) {
-	        if (!value) {
-	          _this2.quill.format('link', false);
-	        } else {
-	          _this2.tooltip.root.classList.add('ql-editing');
-	          input.focus();
-	        }
-	      };
-	      ['mousedown', 'touchstart'].forEach(function (name) {
-	        close.addEventListener(name, function (event) {
-	          _this2.tooltip.root.classList.remove('ql-editing');
-	          event.preventDefault();
-	        });
-	      });
-	      input.addEventListener('keydown', function (event) {
-	        if (_keyboard2.default.match(event, 'enter')) {
-	          var scrollTop = _this2.quill.root.scrollTop;
-	          _this2.quill.focus();
-	          _this2.quill.root.scrollTop = scrollTop;
-	          _this2.quill.format('link', input.value);
-	          _this2.tooltip.hide();
-	          input.value = '';
-	          event.preventDefault();
-	        } else if (_keyboard2.default.match(event, 'escape')) {
-	          _this2.tooltip.classList.remove('ql-editing');
-	          event.preventDefault();
-	        }
-	      });
-	    }
-	  }, {
 	    key: 'extendToolbar',
 	    value: function extendToolbar(toolbar) {
-	      var container = this.quill.addContainer('ql-tooltip', this.quill.root);
-	      this.tooltip = new _tooltip2.default(container, {
-	        bounds: this.options.bounds,
-	        scroll: this.quill.root
-	      });
-	      this.buildLinkEditor(toolbar);
-	      container.appendChild(toolbar.container);
+	      this.tooltip = new BubbleTooltip(this.quill, this.options.bounds);
+	      this.tooltip.root.appendChild(toolbar.container);
 	      this.buildButtons([].slice.call(toolbar.container.querySelectorAll('button')));
 	      this.buildPickers([].slice.call(toolbar.container.querySelectorAll('select')));
-	      this.tooltip.hide();
 	    }
 	  }]);
 
@@ -9433,15 +9256,97 @@ return /******/ (function(modules) { // webpackBootstrap
 	BubbleTheme.DEFAULTS = {
 	  modules: {
 	    toolbar: {
-	      container: [['bold', 'italic', 'link'], [{ header: 1 }, { header: 2 }, 'blockquote']]
+	      container: [['bold', 'italic', 'link'], [{ header: 1 }, { header: 2 }, 'blockquote']],
+	      handlers: {
+	        link: function link(value) {
+	          if (!value) {
+	            this.quill.format('link', false);
+	          } else {
+	            this.quill.theme.tooltip.edit();
+	          }
+	        }
+	      }
 	    }
 	  }
 	};
 
+	var BubbleTooltip = function (_BaseTooltip) {
+	  _inherits(BubbleTooltip, _BaseTooltip);
+
+	  function BubbleTooltip(quill, bounds) {
+	    _classCallCheck(this, BubbleTooltip);
+
+	    var _this2 = _possibleConstructorReturn(this, Object.getPrototypeOf(BubbleTooltip).call(this, quill, bounds));
+
+	    _this2.quill.on(_emitter2.default.events.SELECTION_CHANGE, function (range) {
+	      if (range != null && range.length > 0) {
+	        _this2.show();
+	        // Lock our width so we will expand beyond our offsetParent boundaries
+	        _this2.root.style.left = '0px';
+	        _this2.root.style.width = '';
+	        _this2.root.style.width = _this2.root.offsetWidth + 'px';
+	        var lines = _this2.quill.scroll.lines(range.index, range.length);
+	        if (lines.length === 1) {
+	          _this2.position(_this2.quill.getBounds(range));
+	        } else {
+	          var lastLine = lines[lines.length - 1];
+	          var index = lastLine.offset(_this2.quill.scroll);
+	          var length = Math.min(lastLine.length() - 1, range.index + range.length - index);
+	          var _bounds = _this2.quill.getBounds(new _selection.Range(index, length));
+	          _this2.position(_bounds);
+	        }
+	      } else if (document.activeElement !== _this2.textbox && _this2.quill.hasFocus()) {
+	        _this2.hide();
+	      }
+	    });
+	    return _this2;
+	  }
+
+	  _createClass(BubbleTooltip, [{
+	    key: 'listen',
+	    value: function listen() {
+	      var _this3 = this;
+
+	      _get(Object.getPrototypeOf(BubbleTooltip.prototype), 'listen', this).call(this);
+	      this.root.querySelector('.ql-close').addEventListener('click', function (event) {
+	        _this3.root.classList.remove('ql-editing');
+	      });
+	      this.quill.on(_emitter2.default.events.SCROLL_OPTIMIZE, function () {
+	        // Let selection be restored by toolbar handlers before repositioning
+	        setTimeout(function () {
+	          if (_this3.root.classList.contains('ql-hidden')) return;
+	          var range = _this3.quill.getSelection();
+	          if (range != null) {
+	            _this3.position(_this3.quill.getBounds(range));
+	          }
+	        }, 1);
+	      });
+	    }
+	  }, {
+	    key: 'cancel',
+	    value: function cancel() {
+	      this.show();
+	    }
+	  }, {
+	    key: 'position',
+	    value: function position(reference) {
+	      var shift = _get(Object.getPrototypeOf(BubbleTooltip.prototype), 'position', this).call(this, reference);
+	      if (shift === 0) return shift;
+	      var arrow = this.root.querySelector('.ql-tooltip-arrow');
+	      arrow.style.marginLeft = '';
+	      arrow.style.marginLeft = -1 * shift - arrow.offsetWidth / 2 + 'px';
+	    }
+	  }]);
+
+	  return BubbleTooltip;
+	}(_base.BaseTooltip);
+
+	BubbleTooltip.TEMPLATE = ['<span class="ql-tooltip-arrow"></span>', '<div class="ql-tooltip-editor">', '<input type="text" data-formula="e=mc^2" data-link="quilljs.com" data-video="Embed URL">', '<a class="ql-close"></a>', '</div>'].join('');
+
 	exports.default = BubbleTheme;
 
 /***/ },
-/* 108 */
+/* 107 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -9449,6 +9354,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	Object.defineProperty(exports, "__esModule", {
 	  value: true
 	});
+	exports.default = exports.BaseTooltip = undefined;
 
 	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
@@ -9466,6 +9372,10 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var _emitter2 = _interopRequireDefault(_emitter);
 
+	var _keyboard = __webpack_require__(53);
+
+	var _keyboard2 = _interopRequireDefault(_keyboard);
+
 	var _theme = __webpack_require__(41);
 
 	var _theme2 = _interopRequireDefault(_theme);
@@ -9481,6 +9391,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	var _picker = __webpack_require__(101);
 
 	var _picker2 = _interopRequireDefault(_picker);
+
+	var _tooltip = __webpack_require__(105);
+
+	var _tooltip2 = _interopRequireDefault(_tooltip);
 
 	var _icons = __webpack_require__(69);
 
@@ -9520,6 +9434,22 @@ return /******/ (function(modules) { // webpackBootstrap
 	      };
 	    }
 	    _this.options.modules.toolbar.handlers = (0, _extend2.default)({}, BaseTheme.DEFAULTS.modules.toolbar.handlers, _this.constructor.DEFAULTS.modules.toolbar.handlers || {}, _this.options.modules.toolbar.handlers || {});
+	    var listener = function listener(e) {
+	      if (!document.body.contains(quill.root)) {
+	        return document.body.removeEventListener('click', listener);
+	      }
+	      if (_this.tooltip != null && !_this.tooltip.root.contains(e.target) && document.activeElement !== _this.tooltip.textbox && !_this.quill.hasFocus()) {
+	        _this.tooltip.hide();
+	      }
+	      if (_this.pickers != null) {
+	        _this.pickers.forEach(function (picker) {
+	          if (!picker.container.contains(e.target)) {
+	            picker.close();
+	          }
+	        });
+	      }
+	    };
+	    document.body.addEventListener('click', listener);
 	    return _this;
 	  }
 
@@ -9557,19 +9487,20 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }, {
 	    key: 'buildPickers',
 	    value: function buildPickers(selects) {
-	      var pickers = selects.map(function (select) {
-	        var picker = void 0;
+	      var _this2 = this;
+
+	      this.pickers = selects.map(function (select) {
 	        if (select.classList.contains('ql-align')) {
 	          if (select.querySelector('option') == null) {
 	            fillSelect(select, ALIGNS);
 	          }
-	          picker = new _iconPicker2.default(select, _icons2.default.align);
+	          return new _iconPicker2.default(select, _icons2.default.align);
 	        } else if (select.classList.contains('ql-background') || select.classList.contains('ql-color')) {
 	          var format = select.classList.contains('ql-background') ? 'background' : 'color';
 	          if (select.querySelector('option') == null) {
 	            fillSelect(select, COLORS, format === 'background' ? '#ffffff' : '#000000');
 	          }
-	          picker = new _colorPicker2.default(select, _icons2.default[format]);
+	          return new _colorPicker2.default(select, _icons2.default[format]);
 	        } else {
 	          if (select.querySelector('option') == null) {
 	            if (select.classList.contains('ql-font')) {
@@ -9580,23 +9511,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	              fillSelect(select, SIZES);
 	            }
 	          }
-	          picker = new _picker2.default(select);
+	          return new _picker2.default(select);
 	        }
-	        return picker;
 	      });
 	      var update = function update() {
-	        pickers.forEach(function (picker) {
+	        _this2.pickers.forEach(function (picker) {
 	          picker.update();
 	        });
 	      };
 	      this.quill.on(_emitter2.default.events.SELECTION_CHANGE, update).on(_emitter2.default.events.SCROLL_OPTIMIZE, update);
-	      document.body.addEventListener('click', function (e) {
-	        pickers.forEach(function (picker) {
-	          if (!(e.target.compareDocumentPosition(picker.container) & Node.DOCUMENT_POSITION_CONTAINS)) {
-	            picker.close();
-	          }
-	        });
-	      });
 	    }
 	  }]);
 
@@ -9607,34 +9530,136 @@ return /******/ (function(modules) { // webpackBootstrap
 	  modules: {
 	    toolbar: {
 	      handlers: {
+	        formula: function formula(value) {
+	          this.quill.theme.tooltip.edit('formula');
+	        },
 	        image: function image(value) {
+	          var _this3 = this;
+
 	          var fileInput = this.container.querySelector('input.ql-image[type=file]');
-	          var quill = this.quill;
 	          if (fileInput == null) {
 	            fileInput = document.createElement('input');
 	            fileInput.setAttribute('type', 'file');
 	            fileInput.setAttribute('accept', 'image/*');
 	            fileInput.classList.add('ql-image');
 	            fileInput.addEventListener('change', function () {
-	              if (this.files != null && this.files[0] != null) {
+	              if (fileInput.files != null && fileInput.files[0] != null) {
 	                var reader = new FileReader();
 	                reader.onload = function (e) {
-	                  var range = quill.getSelection(true);
-	                  quill.updateContents(new _delta2.default().retain(range.index).delete(range.length).insert({ image: e.target.result }), _emitter2.default.sources.USER);
-	                  quill.setSelection(range.index + 1, _emitter2.default.sources.SILENT);
+	                  var range = _this3.quill.getSelection(true);
+	                  _this3.quill.updateContents(new _delta2.default().retain(range.index).delete(range.length).insert({ image: e.target.result }), _emitter2.default.sources.USER);
 	                  fileInput.value = "";
 	                };
-	                reader.readAsDataURL(this.files[0]);
+	                reader.readAsDataURL(fileInput.files[0]);
 	              }
 	            });
 	            this.container.appendChild(fileInput);
 	          }
 	          fileInput.click();
+	        },
+	        video: function video(value) {
+	          this.quill.theme.tooltip.edit('video');
 	        }
 	      }
 	    }
 	  }
 	};
+
+	var BaseTooltip = function (_Tooltip) {
+	  _inherits(BaseTooltip, _Tooltip);
+
+	  function BaseTooltip(quill, boundsContainer) {
+	    _classCallCheck(this, BaseTooltip);
+
+	    var _this4 = _possibleConstructorReturn(this, Object.getPrototypeOf(BaseTooltip).call(this, quill, boundsContainer));
+
+	    _this4.textbox = _this4.root.querySelector('input[type="text"]');
+	    _this4.listen();
+	    return _this4;
+	  }
+
+	  _createClass(BaseTooltip, [{
+	    key: 'listen',
+	    value: function listen() {
+	      var _this5 = this;
+
+	      this.textbox.addEventListener('keydown', function (event) {
+	        if (_keyboard2.default.match(event, 'enter')) {
+	          _this5.save();
+	          event.preventDefault();
+	        } else if (_keyboard2.default.match(event, 'escape')) {
+	          _this5.cancel();
+	          event.preventDefault();
+	        }
+	      });
+	    }
+	  }, {
+	    key: 'cancel',
+	    value: function cancel() {
+	      this.hide();
+	    }
+	  }, {
+	    key: 'edit',
+	    value: function edit() {
+	      var mode = arguments.length <= 0 || arguments[0] === undefined ? 'link' : arguments[0];
+	      var preview = arguments.length <= 1 || arguments[1] === undefined ? null : arguments[1];
+
+	      this.root.classList.remove('ql-hidden');
+	      this.root.classList.add('ql-editing');
+	      if (preview != null) {
+	        this.textbox.value = preview;
+	      } else if (mode !== this.root.dataset.mode) {
+	        this.textbox.value = '';
+	      }
+	      this.textbox.select();
+	      this.textbox.setAttribute('placeholder', this.textbox.dataset[mode] || '');
+	      this.root.dataset.mode = mode;
+	      this.position(this.quill.getBounds(this.quill.selection.savedRange));
+	    }
+	  }, {
+	    key: 'save',
+	    value: function save() {
+	      var value = this.textbox.value;
+	      switch (this.root.dataset.mode) {
+	        case 'link':
+	          var scrollTop = this.quill.root.scrollTop;
+	          if (this.linkRange) {
+	            this.quill.formatText(this.linkRange, 'link', value, _emitter2.default.sources.USER);
+	            delete this.linkRange;
+	          } else {
+	            this.quill.focus();
+	            this.quill.format('link', value, _emitter2.default.sources.USER);
+	          }
+	          this.quill.root.scrollTop = scrollTop;
+	          break;
+	        case 'video':
+	          var match = value.match(/^(https?):\/\/(www\.)?youtube\.com\/watch.*v=(\w+)/) || value.match(/^(https?):\/\/(www\.)?youtu\.be\/(\w+)/);
+	          if (match) {
+	            value = match[1] + '://www.youtube.com/embed/' + match[3] + '?showinfo=0';
+	          } else if (match = value.match(/^(https?):\/\/(www\.)?vimeo\.com\/(\d+)/)) {
+	            value = match[1] + '://player.vimeo.com/video/' + match[3] + '/';
+	          }
+	        // fallthrough
+	        case 'formula':
+	          var range = this.quill.getSelection(true);
+	          var index = range.index + range.length;
+	          if (range != null) {
+	            this.quill.insertEmbed(index, this.root.dataset.mode, value, _emitter2.default.sources.USER);
+	            if (this.root.dataset.mode === 'formula') {
+	              this.quill.insertText(index + 1, ' ', _emitter2.default.sources.USER);
+	            }
+	            this.quill.setSelection(index + 2, _emitter2.default.sources.USER);
+	          }
+	          break;
+	        default:
+	      }
+	      this.textbox.value = '';
+	      this.hide();
+	    }
+	  }]);
+
+	  return BaseTooltip;
+	}(_tooltip2.default);
 
 	function fillSelect(select, values) {
 	  var defaultValue = arguments.length <= 2 || arguments[2] === undefined ? false : arguments[2];
@@ -9650,10 +9675,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	  });
 	}
 
+	exports.BaseTooltip = BaseTooltip;
 	exports.default = BaseTheme;
 
 /***/ },
-/* 109 */
+/* 108 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -9662,23 +9688,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	  value: true
 	});
 
+	var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
+
+	var _get = function get(object, property, receiver) { if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
+
 	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 	var _emitter = __webpack_require__(29);
 
 	var _emitter2 = _interopRequireDefault(_emitter);
 
-	var _base = __webpack_require__(108);
+	var _base = __webpack_require__(107);
 
 	var _base2 = _interopRequireDefault(_base);
 
-	var _linkTooltip = __webpack_require__(106);
+	var _link = __webpack_require__(60);
 
-	var _linkTooltip2 = _interopRequireDefault(_linkTooltip);
+	var _link2 = _interopRequireDefault(_link);
 
 	var _picker = __webpack_require__(101);
 
 	var _picker2 = _interopRequireDefault(_picker);
+
+	var _selection = __webpack_require__(40);
 
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -9706,8 +9738,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	      toolbar.container.classList.add('ql-snow');
 	      this.buildButtons([].slice.call(toolbar.container.querySelectorAll('button')));
 	      this.buildPickers([].slice.call(toolbar.container.querySelectorAll('select')));
+	      this.tooltip = new SnowTooltip(this.quill, this.options.bounds);
 	      if (toolbar.container.querySelector('.ql-link')) {
-	        this.linkTooltip = new _linkTooltip2.default(this.quill);
 	        this.quill.keyboard.addBinding({ key: 'K', shortKey: true }, function (range, context) {
 	          toolbar.handlers['link'].call(toolbar, !context.format.link);
 	        });
@@ -9725,8 +9757,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	      handlers: {
 	        link: function link(value) {
 	          if (value) {
-	            var savedRange = this.quill.selection.savedRange;
-	            this.quill.theme.linkTooltip.open(savedRange);
+	            var range = this.quill.getSelection();
+	            if (range == null || range.length == 0) return;
+	            var preview = this.quill.getText(range);
+	            if (/^\S+@\S+\.\S+$/.test(preview) && preview.indexOf('mailto:') !== 0) {
+	              preview = 'mailto:' + preview;
+	            }
+	            var tooltip = this.quill.theme.tooltip;
+	            tooltip.edit('link', preview);
 	          } else {
 	            this.quill.format('link', false);
 	          }
@@ -9736,10 +9774,81 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 	};
 
+	var SnowTooltip = function (_BaseTooltip) {
+	  _inherits(SnowTooltip, _BaseTooltip);
+
+	  function SnowTooltip(quill, bounds) {
+	    _classCallCheck(this, SnowTooltip);
+
+	    var _this2 = _possibleConstructorReturn(this, Object.getPrototypeOf(SnowTooltip).call(this, quill, bounds));
+
+	    _this2.preview = _this2.root.querySelector('a.ql-preview');
+	    return _this2;
+	  }
+
+	  _createClass(SnowTooltip, [{
+	    key: 'listen',
+	    value: function listen() {
+	      var _this3 = this;
+
+	      _get(Object.getPrototypeOf(SnowTooltip.prototype), 'listen', this).call(this);
+	      this.root.querySelector('a.ql-action').addEventListener('click', function (event) {
+	        if (_this3.root.classList.contains('ql-editing')) {
+	          _this3.save();
+	        } else {
+	          _this3.edit('link', _this3.preview.textContent);
+	        }
+	      });
+	      this.root.querySelector('a.ql-remove').addEventListener('click', function (event) {
+	        if (_this3.linkRange != null) {
+	          _this3.quill.focus();
+	          _this3.quill.formatText(_this3.linkRange, 'link', false, _emitter2.default.sources.USER);
+	          delete _this3.linkRange;
+	        }
+	        _this3.hide();
+	      });
+	      this.quill.on(_emitter2.default.events.SELECTION_CHANGE, function (range) {
+	        if (range == null) return;
+	        if (range.length === 0) {
+	          var _quill$scroll$descend = _this3.quill.scroll.descendant(_link2.default, range.index);
+
+	          var _quill$scroll$descend2 = _slicedToArray(_quill$scroll$descend, 2);
+
+	          var link = _quill$scroll$descend2[0];
+	          var offset = _quill$scroll$descend2[1];
+
+	          if (link != null) {
+	            _this3.linkRange = new _selection.Range(range.index - offset, link.length());
+	            var preview = _link2.default.formats(link.domNode);
+	            _this3.preview.textContent = preview;
+	            _this3.preview.setAttribute('href', preview);
+	            _this3.show();
+	            _this3.position(_this3.quill.getBounds(_this3.linkRange));
+	            return;
+	          }
+	        }
+	        _this3.hide();
+	      });
+	    }
+	  }, {
+	    key: 'show',
+	    value: function show() {
+	      _get(Object.getPrototypeOf(SnowTooltip.prototype), 'show', this).call(this);
+	      if (this.root.dataset.mode) {
+	        delete this.root.dataset.mode;
+	      }
+	    }
+	  }]);
+
+	  return SnowTooltip;
+	}(_base.BaseTooltip);
+
+	SnowTooltip.TEMPLATE = ['<a class="ql-preview" target="_blank" href="about:blank"></a>', '<input type="text" data-formula="e=mc^2" data-link="quilljs.com" data-video="Embed URL">', '<a class="ql-action"></a>', '<a class="ql-remove"></a>'].join('');
+
 	exports.default = SnowTheme;
 
 /***/ },
-/* 110 */
+/* 109 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -9918,7 +10027,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 
 /***/ },
-/* 111 */
+/* 110 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -10055,7 +10164,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 112 */
+/* 111 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -10134,7 +10243,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 113 */
+/* 112 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -10226,7 +10335,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 114 */
+/* 113 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -10249,7 +10358,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 115 */
+/* 114 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -10637,7 +10746,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 116 */
+/* 115 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -11088,6 +11197,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    it('empty document', function () {
 	      var selection = this.initialize(_selection2.default, '<p><br></p>', this.div);
 	      this.bounds = selection.getBounds(0);
+	      if (/Android/i.test(navigator.userAgent)) return; // false positive on emulators atm
 	      expect(this.bounds.left).toBeApproximately(this.reference.left, 1);
 	      expect(this.bounds.height).toBeApproximately(this.reference.height, 1);
 	      expect(this.bounds.top).toBeApproximately(this.reference.top, 1);
@@ -11096,6 +11206,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    it('empty line', function () {
 	      var selection = this.initialize(_selection2.default, '\n        <p>0000</p>\n        <p><br></p>\n        <p>0000</p>', this.div);
 	      this.bounds = selection.getBounds(5);
+	      if (/Android/i.test(navigator.userAgent)) return; // false positive on emulators atm
 	      expect(this.bounds.left).toBeApproximately(this.reference.left, 1);
 	      expect(this.bounds.height).toBeApproximately(this.reference.height, 1);
 	      expect(this.bounds.top).toBeApproximately(this.reference.top + this.reference.lineHeight, 2);
@@ -11178,7 +11289,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 117 */
+/* 116 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -11771,7 +11882,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 118 */
+/* 117 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -11819,7 +11930,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 119 */
+/* 118 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -11869,7 +11980,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 120 */
+/* 119 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -11905,7 +12016,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 121 */
+/* 120 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -11953,7 +12064,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 122 */
+/* 121 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -12069,7 +12180,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 123 */
+/* 122 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -12108,7 +12219,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 124 */
+/* 123 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -12140,7 +12251,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 125 */
+/* 124 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -12252,7 +12363,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 126 */
+/* 125 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -12386,7 +12497,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 127 */
+/* 126 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -12572,7 +12683,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 128 */
+/* 127 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -12613,7 +12724,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 129 */
+/* 128 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -12622,7 +12733,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var _quill2 = _interopRequireDefault(_quill);
 
-	var _snow = __webpack_require__(109);
+	var _snow = __webpack_require__(108);
 
 	var _snow2 = _interopRequireDefault(_snow);
 
@@ -12695,7 +12806,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 130 */
+/* 129 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
