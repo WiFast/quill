@@ -11,15 +11,14 @@ let debug = logger('quill:toolbar');
 
 class Toolbar extends Module {
   constructor(quill, options) {
-    options.handlers = extend({}, Toolbar.DEFAULTS.handlers, options.handlers);
     super(quill, options);
-    if (typeof this.options.container === 'string') {
-      this.container = document.querySelector(this.options.container);
-    } else if (Array.isArray(this.options.container)) {
+    if (Array.isArray(this.options.container)) {
       let container = document.createElement('div');
       addControls(container, this.options.container);
       quill.container.parentNode.insertBefore(container, quill.container);
       this.container = container;
+    } else if (typeof this.options.container === 'string') {
+      this.container = document.querySelector(this.options.container);
     } else {
       this.container = this.options.container;
     }
@@ -84,7 +83,11 @@ class Toolbar extends Module {
           value = selected.value || false;
         }
       } else {
-        value = input.classList.contains('ql-active') ? false : input.value || true;
+        if (input.classList.contains('ql-active')) {
+          value = false;
+        } else {
+          value = input.value || !input.hasAttribute('value');
+        }
         e.preventDefault();
       }
       this.quill.focus();
@@ -92,10 +95,12 @@ class Toolbar extends Module {
       if (this.handlers[format] != null) {
         this.handlers[format].call(this, value);
       } else if (Parchment.query(format).prototype instanceof Parchment.Embed) {
+        value = prompt(`Enter ${format}`);
+        if (!value) return;
         this.quill.updateContents(new Delta()
           .retain(range.index)
           .delete(range.length)
-          .insert({ [format]: true })
+          .insert({ [format]: value })
         , Quill.sources.USER);
       } else {
         this.quill.format(format, value, Quill.sources.USER);
@@ -112,7 +117,9 @@ class Toolbar extends Module {
       let [format, input] = pair;
       if (input.tagName === 'SELECT') {
         let option;
-        if (formats[format] == null) {
+        if (range == null) {
+          option = null;
+        } else if (formats[format] == null) {
           option = input.querySelector('option[selected]');
         } else if (!Array.isArray(formats[format])) {
           let value = formats[format];
@@ -127,12 +134,16 @@ class Toolbar extends Module {
         } else {
           option.selected = true;
         }
-      } if (input.value) {
-        let active = input.value === formats[format] ||
-                     (formats[format] != null && input.value === formats[format].toString());
-        input.classList.toggle('ql-active', active);
       } else {
-        input.classList.toggle('ql-active', formats[format] === true || (format === 'link' && formats[format] != null));
+        if (range == null) {
+          input.classList.remove('ql-active');
+        } else if (input.hasAttribute('value')) {
+          // both being null should match (default values)
+          // '1' should match with 1 (headers)
+          input.classList.toggle('ql-active', formats[format] == input.value || (formats[format] == null && !input.value));
+        } else {
+          input.classList.toggle('ql-active', formats[format] != null);
+        }
       }
     });
   }
@@ -215,6 +226,12 @@ Toolbar.DEFAULTS = {
         this.quill.format('align', false, Quill.sources.USER);
       }
       this.quill.format('direction', value, Quill.sources.USER);
+    },
+    link: function(value) {
+      if (value === true) {
+        value = prompt('Enter link URL:');
+      }
+      this.quill.format('link', value, Quill.sources.USER);
     },
     indent: function(value) {
       let range = this.quill.getSelection();

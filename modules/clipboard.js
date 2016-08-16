@@ -14,6 +14,17 @@ import { SizeStyle } from '../formats/size';
 
 let debug = logger('quill:clipboard');
 
+const CLIPBOARD_CONFIG = [
+  [Node.TEXT_NODE, matchText],
+  ['br', matchBreak],
+  [Node.ELEMENT_NODE, matchNewline],
+  [Node.ELEMENT_NODE, matchBlot],
+  [Node.ELEMENT_NODE, matchSpacing],
+  [Node.ELEMENT_NODE, matchAttributor],
+  [Node.ELEMENT_NODE, matchStyles],
+  ['b', matchAlias.bind(matchAlias, 'bold')],
+  ['i', matchAlias.bind(matchAlias, 'italic')]
+];
 
 const STYLE_ATTRIBUTORS = [
   AlignStyle,
@@ -30,16 +41,13 @@ const STYLE_ATTRIBUTORS = [
 
 class Clipboard extends Module {
   constructor(quill, options) {
-    if (options.matchers !== Clipboard.DEFAULTS.matchers) {
-      options.matchers = Clipboard.DEFAULTS.matchers.concat(options.matchers);
-    }
     super(quill, options);
     this.quill.root.addEventListener('paste', this.onPaste.bind(this));
     this.container = this.quill.addContainer('ql-clipboard');
     this.container.setAttribute('contenteditable', true);
     this.container.setAttribute('tabindex', -1);
     this.matchers = [];
-    this.options.matchers.forEach((pair) => {
+    CLIPBOARD_CONFIG.concat(this.options.matchers).forEach((pair) => {
       this.addMatcher(...pair);
     });
   }
@@ -121,17 +129,7 @@ class Clipboard extends Module {
   }
 }
 Clipboard.DEFAULTS = {
-  matchers: [
-    [Node.TEXT_NODE, matchText],
-    ['br', matchBreak],
-    [Node.ELEMENT_NODE, matchNewline],
-    [Node.ELEMENT_NODE, matchBlot],
-    [Node.ELEMENT_NODE, matchSpacing],
-    [Node.ELEMENT_NODE, matchAttributor],
-    [Node.ELEMENT_NODE, matchStyles],
-    ['b', matchAlias.bind(matchAlias, 'bold')],
-    ['i', matchAlias.bind(matchAlias, 'italic')]
-  ]
+  matchers: []
 };
 
 
