@@ -56,7 +56,6 @@ class Quill {
     if (options.debug) {
       Quill.debug(options.debug);
     }
-    options.bounds = typeof options.bounds === 'string' ? document.querySelector(options.bounds) : options.bounds;
     let html = this.container.innerHTML.trim();
     this.container.classList.add('ql-container');
     this.container.innerHTML = '';
@@ -124,7 +123,7 @@ class Quill {
   }
 
   format(name, value, source = Emitter.sources.API) {
-    let range = this.getSelection();
+    let range = this.getSelection(true);
     let change = new Delta();
     if (range == null) return change;
     if (Parchment.query(name, Parchment.Scope.BLOCK)) {
@@ -203,7 +202,7 @@ class Quill {
     return this.selection.hasFocus();
   }
 
-  insertEmbed(index, embed, value, source) {
+  insertEmbed(index, embed, value, source = Quill.sources.API) {
     let range = this.getSelection();
     let change = this.editor.insertEmbed(index, embed, value, source);
     range = shiftRange(range, change, source);
@@ -305,7 +304,7 @@ Quill.DEFAULTS = {
 };
 Quill.events = Emitter.events;
 Quill.sources = Emitter.sources;
-Quill.version = QUILL_VERSION;
+Quill.version = typeof(QUILL_VERSION) === 'undefined' ? 'dev' : QUILL_VERSION;
 
 Quill.imports = {
   'delta'       : Delta,
