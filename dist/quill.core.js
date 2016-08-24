@@ -1,5 +1,5 @@
 /*!
- * Quill Editor v1.0.0-rc.1.zenreach
+ * Quill Editor v1.0.12-zenreach
  * https://quilljs.com/
  * Copyright (c) 2014, Jason Chen
  * Copyright (c) 2013, salesforce.com
@@ -2112,7 +2112,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 	Quill.events = _emitter2.default.events;
 	Quill.sources = _emitter2.default.sources;
-	Quill.version =  false ? 'dev' : ("1.0.0-rc.1.zenreach");
+	Quill.version =  false ? 'dev' : ("1.0.12-zenreach");
 
 	Quill.imports = {
 	  'delta': _delta2.default,
