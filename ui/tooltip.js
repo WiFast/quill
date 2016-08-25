@@ -15,7 +15,7 @@ class Tooltip {
   checkBounds() {
     this.root.classList.toggle('ql-out-top', this.root.offsetTop <= 0);
     this.root.classList.remove('ql-out-bottom');
-    this.root.classList.toggle('ql-out-bottom', this.root.offsetTop + this.root.offsetHeight >= this.quill.root.offsetHeight);
+    this.root.classList.toggle('ql-out-bottom', this.root.offsetTop + this.root.offsetHeight >= this.quill.root.offsetHeight + 100);
   }
 
   hide() {
