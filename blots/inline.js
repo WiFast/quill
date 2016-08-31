@@ -6,17 +6,7 @@ import Parchment from 'parchment';
 
 class Inline extends Parchment.Inline {
   static compare(self, other) {
-    let selfIndex = Inline.order.indexOf(self);
-    let otherIndex = Inline.order.indexOf(other);
-    if (selfIndex >= 0 || otherIndex >= 0) {
-      return selfIndex - otherIndex;
-    } else if (self === other) {
-      return 0;
-    } else if (self < other) {
-      return -1;
-    } else {
-      return 1;
-    }
+    return Inline.order.indexOf(self) - Inline.order.indexOf(other);
   }
 
   formatAt(index, length, name, value) {

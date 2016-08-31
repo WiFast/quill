@@ -1,5 +1,8 @@
 import extend from 'extend';
 import Emitter from './emitter';
+import logger from './logger';
+
+let debug = logger('[quill:theme]');
 
 
 class Theme {

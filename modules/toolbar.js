@@ -4,6 +4,7 @@ import Parchment from 'parchment';
 import Quill from '../core/quill';
 import logger from '../core/logger';
 import Module from '../core/module';
+import { Range } from '../core/selection';
 
 let debug = logger('quill:toolbar');
 
@@ -236,10 +237,10 @@ Toolbar.DEFAULTS = {
       let range = this.quill.getSelection();
       let formats = this.quill.getFormat(range);
       let indent = parseInt(formats.indent || 0);
-      if (value === '+1' || value === '-1') {
-        let modifier = (value === '+1') ? 1 : -1;
-        if (formats.direction === 'rtl') modifier *= -1;
-        this.quill.format('indent', indent + modifier, Quill.sources.USER);
+      if (value === '+1') {
+        this.quill.format('indent', indent + 1, Quill.sources.USER);
+      } else if (value === '-1') {
+        this.quill.format('indent', indent - 1, Quill.sources.USER);
       }
     }
   }

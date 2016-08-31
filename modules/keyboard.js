@@ -6,6 +6,7 @@ import Parchment from 'parchment';
 import Quill from '../core/quill';
 import logger from '../core/logger';
 import Module from '../core/module';
+import { Range } from '../core/selection';
 import Block from '../blots/block';
 
 let debug = logger('quill:keyboard');
@@ -302,20 +303,27 @@ function makeFormatHandler(format) {
 }
 
 function normalize(binding) {
-  if (typeof binding === 'string' || typeof binding === 'number') {
-    return normalize({ key: binding });
-  }
-  if (typeof binding === 'object') {
-    binding = clone(binding, false);
+  switch (typeof binding) {
+    case 'string':
+      if (Keyboard.keys[binding.toUpperCase()] != null) {
+        binding = { key: Keyboard.keys[binding.toUpperCase()] };
+      } else if (binding.length === 1) {
+        binding = { key: binding.toUpperCase().charCodeAt(0) };
+      } else {
+        return null;
+      }
+      break;
+    case 'number':
+      binding = { key: binding };
+      break;
+    case 'object':
+      binding = clone(binding, false);
+      break;
+    default:
+      return null;
   }
   if (typeof binding.key === 'string') {
-    if (Keyboard.keys[binding.key.toUpperCase()] != null) {
-      binding.key = Keyboard.keys[binding.key.toUpperCase()];
-    } else if (binding.key.length === 1) {
-      binding.key = binding.key.toUpperCase().charCodeAt(0);
-    } else {
-      return null;
-    }
+    binding.key = binding.key.toUpperCase().charCodeAt(0);
   }
   return binding;
 }

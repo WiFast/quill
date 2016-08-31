@@ -186,16 +186,10 @@ class BaseTooltip extends Tooltip {
     } else if (mode !== this.root.dataset.mode) {
       this.textbox.value = '';
     }
-    this.position(this.quill.getBounds(this.quill.selection.savedRange));
     this.textbox.select();
     this.textbox.setAttribute('placeholder', this.textbox.dataset[mode] || '');
     this.root.dataset.mode = mode;
-  }
-
-  restoreFocus() {
-    let scrollTop = this.quill.root.scrollTop;
-    this.quill.focus();
-    this.quill.root.scrollTop = scrollTop;
+    this.position(this.quill.getBounds(this.quill.selection.savedRange));
   }
 
   save() {
@@ -207,7 +201,7 @@ class BaseTooltip extends Tooltip {
           this.quill.formatText(this.linkRange, 'link', value, Emitter.sources.USER);
           delete this.linkRange;
         } else {
-          this.restoreFocus();
+          this.quill.focus();
           this.quill.format('link', value, Emitter.sources.USER);
         }
         this.quill.root.scrollTop = scrollTop;
